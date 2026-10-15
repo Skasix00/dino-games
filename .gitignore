@@ -43,3 +43,4 @@ next-env.d.ts
 /deploy/.env
 DINO_GAMES_PLAN.md
 AGENTS.md
+deploy/README.md

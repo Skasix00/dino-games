@@ -12,9 +12,10 @@ services:
   app:
     <<: *service
     image: ghcr.io/skasix00/dino-games:${IMAGE_TAG:-production}
+    command: [sh, -c, 'node seed.mjs && exec node server.js']
     environment:
-      APP_ORIGIN: https://${PUBLIC_DOMAIN:-bruno.castelo.net}
-      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-bruno.castelo.net}
+      APP_ORIGIN: https://${PUBLIC_DOMAIN:-brunocastelo.me}
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-brunocastelo.me}
       MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:?Set Mongo username}:${MONGO_INITDB_ROOT_PASSWORD:?Set Mongo password}@mongo:27017/${MONGODB_DB:-dino_games}?authSource=admin
       MONGODB_DB: ${MONGODB_DB:-dino_games}
       SESSION_SECRET: ${SESSION_SECRET:?Set session secret}
@@ -22,10 +23,6 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-    networks:
-      default:
-      proxy:
-        aliases: [dino-games-app]
     healthcheck:
       test:
         [
@@ -59,10 +56,43 @@ services:
       retries: 10
       start_period: 40s
 
+  proxy:
+    <<: *service
+    image: caddy:2-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:2019/config/']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
 volumes:
   mongo-data:
+  caddy-data:
+  caddy-config:
 
-networks:
-  proxy:
-    external: true
-    name: dino-proxy
+configs:
+  caddyfile:
+    content: |
+      {
+        email ${ACME_EMAIL:?Set certificate email}
+      }
+      ${PUBLIC_DOMAIN:-brunocastelo.me} {
+        reverse_proxy app:3000 {
+          header_up X-Real-IP {remote_host}
+        }
+        header X-Robots-Tag "noindex, nofollow"
+      }

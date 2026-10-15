@@ -54,7 +54,7 @@ Reference conventions: [Carris ESLint](https://github.com/carrismetropolitana/es
 
 ## Content approval and new games
 
-The current content version is `2`. Run `npm run seed` locally (or `docker compose --env-file .env exec app node seed.mjs` on the server after updating the image) to install the enabled quiz. To restore question 4 later, set its confirmed `correctOptionId`, `approved: true` and `enabled: true` in `src/content/bernardo.json`, increase the registry question count to 17, and bump the content version in both places before reseeding. Enabled questions must all pass validation; explicitly disabled questions are retained but excluded. Existing attempts keep their snapshots, selected option order and elapsed times.
+The current content version is `2`. Run `npm run seed` locally to install the enabled quiz. Production Compose seeds it automatically before starting the app. To restore question 4 later, set its confirmed `correctOptionId`, `approved: true` and `enabled: true` in `src/content/bernardo.json`, increase the registry question count to 17, and bump the content version in both places before reseeding. Enabled questions must all pass validation; explicitly disabled questions are retained but excluded. Existing attempts keep their snapshots, selected option order and elapsed times.
 
 When changing published content, increment `contentVersion` in both the source and `src/settings/games.ts`. Rankings separate content/rules versions. Do not change `rulesVersion` during an event with active games. Keep the published scoring implementation available if introducing another rules version later.
 
@@ -106,12 +106,12 @@ npx playwright install chromium
 npm run test:browser
 docker build -t dino-games:validation .
 npm run test:containers
-docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet
+docker compose --env-file deploy/.env.example -f compose.yml config --quiet
 ```
 
-Integration and browser suites start temporary real MongoDB instances using `mongodb-memory-server`. The first run downloads MongoDB 7.0.14. Browser tests use an isolated database of synthetic questions and an isolated Next.js server on port 3100. They do not modify `.env` or approve family content. Container verification creates a randomly named, isolated Compose project, checks registration and the enabled 16-question quiz, completes the seeded quiz without question 4, recreates both containers, verifies persisted results, and removes only its own temporary stack and volume. Use `npm run lint:fix` and `npm run format` for automatic fixes.
+Integration and browser suites start temporary real MongoDB instances using `mongodb-memory-server`. The first run downloads MongoDB 7.0.14. Browser tests use an isolated database of synthetic questions and an isolated Next.js server on port 3100. They do not modify `.env` or approve family content. Container verification creates a randomly named, isolated Compose project, checks registration and the enabled 16-question quiz, completes the seeded quiz without question 4, recreates all three containers, verifies persisted results through HTTPS, and removes only its own temporary stack and volume. Use `npm run lint:fix` and `npm run format` for automatic fixes.
 
-Production deployment, TLS setup, updates, rollback and persistence checks are in [deploy/README.md](deploy/README.md). The accepted plan and subsequent account/organization amendments are in [DINO_GAMES_PLAN.md](DINO_GAMES_PLAN.md).
+Deploy **brunocastelo.me** on its own server using the root [compose.yml](compose.yml): app, MongoDB, automatic quiz seeding and Caddy HTTPS in one stack. Set the secrets and certificate email from `deploy/.env.example`, then run `docker compose up -d --wait`. Production deployment, updates, rollback and persistence checks are in [deploy/README.md](deploy/README.md). The accepted plan and subsequent account/organization amendments are in [DINO_GAMES_PLAN.md](DINO_GAMES_PLAN.md).
 
 ### Preview on an iPhone
 
