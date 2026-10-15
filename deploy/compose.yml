@@ -1,0 +1,68 @@
+name: dino-games
+
+x-service: &service
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  app:
+    <<: *service
+    image: ghcr.io/skasix00/dino-games:${IMAGE_TAG:-production}
+    environment:
+      APP_ORIGIN: https://${PUBLIC_DOMAIN:-bruno.castelo.net}
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-bruno.castelo.net}
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:?Set Mongo username}:${MONGO_INITDB_ROOT_PASSWORD:?Set Mongo password}@mongo:27017/${MONGODB_DB:-dino_games}?authSource=admin
+      MONGODB_DB: ${MONGODB_DB:-dino_games}
+      SESSION_SECRET: ${SESSION_SECRET:?Set session secret}
+      TRUST_PROXY: 'true'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      default:
+      proxy:
+        aliases: [dino-games-app]
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 40s
+
+  mongo:
+    <<: *service
+    image: mongo:7
+    command: [mongod, --auth, --wiredTigerCacheSizeGB, '0.5']
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?Set Mongo username}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Set Mongo password}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'mongosh --quiet --host 127.0.0.1 -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand({ ping: 1 })"',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+volumes:
+  mongo-data:
+
+networks:
+  proxy:
+    external: true
+    name: dino-proxy

@@ -1,0 +1,14 @@
+# Apply with NCN's original compose file. Its default network stays attached.
+services:
+  nginx:
+    networks:
+      - default
+      - dino-proxy
+    volumes:
+      - ./dino-nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./dino-games.conf:/etc/nginx/dino-games.conf:ro
+
+networks:
+  dino-proxy:
+    external: true
+    name: dino-proxy

@@ -1,0 +1,227 @@
+{
+	"gameSlug": "bernardo-quiz",
+	"contentVersion": "1",
+	"questions": [
+		{
+			"id": "q01",
+			"order": 1,
+			"text": "O Bernardo tem quantos nomes?",
+			"options": [
+				{ "id": "a", "text": "5 nomes" },
+				{ "id": "b", "text": "3 nomes" },
+				{ "id": "c", "text": "4 nomes" },
+				{ "id": "d", "text": "6 nomes" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q02",
+			"order": 2,
+			"text": "Com que idade nasceu o primeiro dente?",
+			"options": [
+				{ "id": "a", "text": "6 meses" },
+				{ "id": "b", "text": "4 meses" },
+				{ "id": "c", "text": "8 meses" },
+				{ "id": "d", "text": "10 meses" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q03",
+			"order": 3,
+			"text": "Quantos dentes tem o Bernardo?",
+			"options": [
+				{ "id": "a", "text": "2 em baixo" },
+				{ "id": "b", "text": "2 em cima" },
+				{ "id": "c", "text": "1 em baixo" },
+				{ "id": "d", "text": "2 em cima e 2 em baixo" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q04",
+			"order": 4,
+			"text": "Qual foi o primeiro dente a nascer?",
+			"options": [
+				{ "id": "a", "text": "Incisivo central inferior direito" },
+				{ "id": "b", "text": "Incisivo central inferior esquerdo" },
+				{ "id": "c", "text": "Incisivo central superior direito" },
+				{ "id": "d", "text": "Incisivo central superior esquerdo" }
+			],
+			"correctOptionId": null,
+			"approved": false
+		},
+		{
+			"id": "q05",
+			"order": 5,
+			"text": "Com quantos quilos nasceu o Bernardo?",
+			"options": [
+				{ "id": "a", "text": "1,725 kg" },
+				{ "id": "b", "text": "2,150 kg" },
+				{ "id": "c", "text": "2,750 kg" },
+				{ "id": "d", "text": "3,125 kg" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q06",
+			"order": 6,
+			"text": "A que horas nasceu?",
+			"options": [
+				{ "id": "a", "text": "20h47" },
+				{ "id": "b", "text": "08h47" },
+				{ "id": "c", "text": "14h27" },
+				{ "id": "d", "text": "22h17" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q07",
+			"order": 7,
+			"text": "Em que hospital nasceu?",
+			"options": [
+				{ "id": "a", "text": "Hospital Beatriz Ângelo" },
+				{ "id": "b", "text": "Hospital de Santa Maria" },
+				{ "id": "c", "text": "Hospital de São Francisco Xavier" },
+				{ "id": "d", "text": "Maternidade Alfredo da Costa" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q08",
+			"order": 8,
+			"text": "Nasceu de parto normal ou cesariana?",
+			"options": [
+				{ "id": "a", "text": "Cesariana" },
+				{ "id": "b", "text": "Parto normal" },
+				{ "id": "c", "text": "Parto com ventosa" },
+				{ "id": "d", "text": "Parto com fórceps" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q09",
+			"order": 9,
+			"text": "Com que idade começou a gatinhar?",
+			"options": [
+				{ "id": "a", "text": "10 meses" },
+				{ "id": "b", "text": "7 meses" },
+				{ "id": "c", "text": "8 meses" },
+				{ "id": "d", "text": "11 meses" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q10",
+			"order": 10,
+			"text": "Qual foi a primeira viagem de avião que fez?",
+			"options": [
+				{ "id": "a", "text": "Tenerife" },
+				{ "id": "b", "text": "Madeira" },
+				{ "id": "c", "text": "São Miguel" },
+				{ "id": "d", "text": "Maiorca" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q11",
+			"order": 11,
+			"text": "Quem mudou a primeira fralda?",
+			"options": [
+				{ "id": "a", "text": "Mãe" },
+				{ "id": "b", "text": "Pai" },
+				{ "id": "c", "text": "Avó" },
+				{ "id": "d", "text": "Enfermeira" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q12",
+			"order": 12,
+			"text": "Qual é a data de nascimento completa?",
+			"options": [
+				{ "id": "a", "text": "24/10/2025" },
+				{ "id": "b", "text": "24/09/2025" },
+				{ "id": "c", "text": "14/10/2025" },
+				{ "id": "d", "text": "24/11/2025" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q13",
+			"order": 13,
+			"text": "Quem deu o primeiro banho?",
+			"options": [
+				{ "id": "a", "text": "Pai" },
+				{ "id": "b", "text": "Mãe" },
+				{ "id": "c", "text": "Avô" },
+				{ "id": "d", "text": "Enfermeira" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q14",
+			"order": 14,
+			"text": "Qual é o nome do pediatra do Bernardo?",
+			"options": [
+				{ "id": "a", "text": "Rita" },
+				{ "id": "b", "text": "Ana" },
+				{ "id": "c", "text": "Sofia" },
+				{ "id": "d", "text": "Marta" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q15",
+			"order": 15,
+			"text": "Quem é que o consegue adormecer mais depressa?",
+			"options": [
+				{ "id": "a", "text": "Pai" },
+				{ "id": "b", "text": "Mãe" },
+				{ "id": "c", "text": "Avó" },
+				{ "id": "d", "text": "Avô" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q16",
+			"order": 16,
+			"text": "Qual é a marca do leite do Bernardo?",
+			"options": [
+				{ "id": "a", "text": "Aptamil" },
+				{ "id": "b", "text": "NAN" },
+				{ "id": "c", "text": "Nutribén" },
+				{ "id": "d", "text": "Novalac" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		},
+		{
+			"id": "q17",
+			"order": 17,
+			"text": "Qual foi a primeira alcunha que lhe deram?",
+			"options": [
+				{ "id": "a", "text": "BennyRex" },
+				{ "id": "b", "text": "BennyDino" },
+				{ "id": "c", "text": "MiniRex" },
+				{ "id": "d", "text": "BennySaurus" }
+			],
+			"correctOptionId": "a",
+			"approved": false
+		}
+	]
+}

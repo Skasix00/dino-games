@@ -1,0 +1,31 @@
+.footer {
+	max-width: 1096px;
+	margin: 60px auto 0;
+	padding: 25px 0 32px;
+	border-top: 1px solid var(--line);
+	display: flex;
+	justify-content: space-between;
+	gap: 20px;
+	font-size: 12px;
+	color: var(--muted);
+}
+.footer a {
+	text-decoration: none;
+}
+.footer span span {
+	color: var(--red);
+	margin-left: 5px;
+}
+@media (max-width: 1160px) {
+	.footer {
+		margin-left: 32px;
+		margin-right: 32px;
+	}
+}
+@media (max-width: 600px) {
+	.footer {
+		margin: 40px 20px 0;
+		flex-direction: column;
+		text-align: center;
+	}
+}

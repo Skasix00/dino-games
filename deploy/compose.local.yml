@@ -1,0 +1,8 @@
+name: dino-games-local
+services:
+  mongo:
+    image: mongo:7
+    ports: ['127.0.0.1:27017:27017']
+    volumes: ['mongo-local:/data/db']
+volumes:
+  mongo-local:
