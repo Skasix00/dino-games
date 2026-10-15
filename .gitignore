@@ -42,3 +42,4 @@ next-env.d.ts
 # local databases and credentials
 /deploy/.env
 DINO_GAMES_PLAN.md
+AGENTS.md

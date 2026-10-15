@@ -85,7 +85,9 @@ export default function QuizGame({ game, hasPlayer }: QuizGameProps) {
 			<Link className="text-link" href="/">
 				← Todos os jogos
 			</Link>
-			<div className={styles.header}>
+			<div
+				className={`${styles.header} ${session?.status === 'active' ? styles.activeHeader : ''}`}
+			>
 				<p className="eyebrow">{game.label}</p>
 				<h1 className="page-heading">{game.title}</h1>
 			</div>

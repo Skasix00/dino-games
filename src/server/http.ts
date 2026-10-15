@@ -16,12 +16,39 @@ import {
 } from '@/server/games';
 import { hashPassword, verifyPassword } from '@/server/passwords';
 import { GameError, normalizeName } from '@/server/quiz';
+import {
+	checkpointRunner,
+	currentRunner,
+	ownedRunner,
+	runnerResponse,
+	startRunner,
+} from '@/server/runner';
 const uuid = z.string().uuid();
 const answerSchema = z
 	.object({
 		sessionId: uuid,
 		questionId: z.string().min(1).max(100),
 		optionId: z.string().min(1).max(100).optional(),
+	})
+	.strict();
+
+const runnerBatchSchema = z
+	.object({
+		sessionId: uuid,
+		batchId: uuid,
+		revision: z.number().int().nonnegative(),
+		toTick: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+		inputs: z
+			.array(
+				z
+					.object({
+						tick: z.number().int().positive(),
+						action: z.enum(['left', 'right', 'jump', 'slide']),
+					})
+					.strict(),
+			)
+			.max(80),
+		finish: z.boolean(),
 	})
 	.strict();
 
@@ -111,6 +138,31 @@ export async function handleApi(request: Request, path: string[]) {
 			}
 			if (!post && action === 'leaderboard') {
 				return json({ rows: await leaderboard(slug) });
+			}
+			if (game.type === 'runner') {
+				if (post && action === 'start') {
+					return json({ session: await runnerResponse(await startRunner(auth, slug)) });
+				}
+				if (!post && action === 'current') {
+					const run = await currentRunner(auth, slug);
+
+					return json({ session: run ? await runnerResponse(run) : null });
+				}
+				if (post && action === 'checkpoint') {
+					const batch = runnerBatchSchema.parse(await body(request));
+
+					return json({ session: await runnerResponse(await checkpointRunner(auth, slug, batch)) });
+				}
+				if (!post && action === 'result') {
+					const id = uuid.parse(new URL(request.url).searchParams.get('sessionId'));
+					const run = await ownedRunner(auth, slug, id);
+					if (run.status !== 'completed') {
+						throw new GameError('A corrida ainda não terminou.', 409);
+					}
+
+					return json({ session: await runnerResponse(run) });
+				}
+				throw new GameError('Pedido não disponível para este jogo.', 404);
 			}
 			if (!post && action === 'current') {
 				const session = await currentGame(auth, slug);

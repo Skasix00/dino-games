@@ -17,7 +17,8 @@
 		"test:browser": "tsx scripts/run-browser-tests.ts",
 		"lint:fix": "eslint . --fix",
 		"format": "prettier --write .",
-		"format:check": "prettier --check ."
+		"format:check": "prettier --check .",
+		"test:containers": "tsx scripts/verify-containers.ts"
 	},
 	"dependencies": {
 		"mongodb": "^7.7.0",

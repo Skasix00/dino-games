@@ -1,6 +1,6 @@
 # Dino Games
 
-BennyRex's family game portal, in Portuguese (Portugal). Next.js App Router, TypeScript, Tailwind CSS and MongoDB. The portal is ready to host more games; Bernardo's quiz is the first entry.
+BennyRex's family game portal, in Portuguese (Portugal). Next.js App Router, TypeScript, Tailwind CSS and MongoDB. The portal includes Bernardo's quiz and **BennyRex Rush**, an original dinosaur endless runner for mobile.
 
 **The quiz intentionally starts locked.** Question 4 has no supplied answer and the proposed answer choices are not approved. Test fixtures are synthetic and never unlock production content.
 
@@ -34,7 +34,7 @@ src/
     layout/               # Header and footer
     home/                 # Portal and reusable game card
     players/              # Personal account form
-    games/                # Quiz renderer
+    games/                # Quiz, runner, and runner artwork
     ranking/              # Game selector and leaderboard
   content/                # Server-only reviewed question source (never public assets)
   hooks/                  # Client hooks
@@ -62,24 +62,35 @@ To add a quiz, add its registry entry and content seed, then reuse the account, 
 
 Question 8 currently has the supplied binary wording but four draft options describing different delivery methods. Review that wording and the distinctions along with all other distractors before approval.
 
+## BennyRex Rush
+
+Choose **BennyRex Rush** in the portal or open `/games/bennyrex-rush`. The playable character is an animated green dinosaur with a party hat. Swipe left/right to change between three lanes, up to jump over crates, and down to slide under striped barriers. Pizza carts require changing lanes. Buttons and arrow/WASD keys provide alternative controls; Space jumps and Escape/P pauses.
+
+Each metre earns one point, and each coin earns ten. Coin trails award five coins when crossed. Speed increases gradually; every obstacle row has at least one clear lane. Collisions end the run. Pause allows resuming or saving the current score, and backgrounding the browser pauses automatically. Runs use the full mobile viewport with safe-area spacing and large controls.
+
+The browser and server share a seeded, fixed-step simulation. Movement checkpoints are sent approximately every three seconds. The server replays inputs, checks elapsed time and session ownership, and derives distance, coins, collisions and score itself. It never trusts a submitted score. Requests are bounded and revision-checked; retries cannot score twice. Network failures pause progress and allow retrying the same checkpoint. Refresh resumes the last acknowledged checkpoint, so up to a few unsaved seconds may be lost on abrupt closure.
+
+Runner sessions share `gameSessions`, player accounts and the leaderboard service, with their own runner state and game slug. Rankings compare score, distance, then earliest completion. Quiz rankings and the pending quiz-content approval are unaffected. Adding this game needs no database migration, seed approval or new dependency.
+
 ## API
 
 All mutations accept JSON and require `Origin` equal to `APP_ORIGIN`. Account endpoints are rate limited by proxy IP and normalized username. Gameplay requests are limited by signed session. The proxy must overwrite `X-Real-IP`; only enable `TRUST_PROXY=true` when the app has no direct public ingress.
 
-| Endpoint                              | Method | Purpose                                               |
-| ------------------------------------- | ------ | ----------------------------------------------------- |
-| `/api/auth/register`                  | POST   | Create `{ displayName, password }` and sign in        |
-| `/api/auth/login`                     | POST   | Sign in with `{ displayName, password }`              |
-| `/api/logout`                         | POST   | Clear the signed cookie                               |
-| `/api/me`                             | GET    | Current player's public profile                       |
-| `/api/games/:slug/availability`       | GET    | Whether approved content is ready                     |
-| `/api/games/:slug/start`              | POST   | Start or resume an active browser attempt             |
-| `/api/games/:slug/current`            | GET    | Recover the latest attempt, including final results   |
-| `/api/games/:slug/answer`             | POST   | `{ sessionId, questionId, optionId }`                 |
-| `/api/games/:slug/next`               | POST   | `{ sessionId, questionId }` for the answered question |
-| `/api/games/:slug/result?sessionId=…` | GET    | Owned completed result                                |
-| `/api/games/:slug/leaderboard`        | GET    | Best completed result per player                      |
-| `/api/health`                         | GET    | Database readiness without private content            |
+| Endpoint                              | Method | Purpose                                                           |
+| ------------------------------------- | ------ | ----------------------------------------------------------------- |
+| `/api/auth/register`                  | POST   | Create `{ displayName, password }` and sign in                    |
+| `/api/auth/login`                     | POST   | Sign in with `{ displayName, password }`                          |
+| `/api/logout`                         | POST   | Clear the signed cookie                                           |
+| `/api/me`                             | GET    | Current player's public profile                                   |
+| `/api/games/:slug/availability`       | GET    | Whether approved content is ready                                 |
+| `/api/games/:slug/start`              | POST   | Start or resume an active browser attempt                         |
+| `/api/games/:slug/current`            | GET    | Recover the latest attempt, including final results               |
+| `/api/games/:slug/answer`             | POST   | `{ sessionId, questionId, optionId }`                             |
+| `/api/games/:slug/next`               | POST   | `{ sessionId, questionId }` for the answered question             |
+| `/api/games/:slug/checkpoint`         | POST   | Runner `{ sessionId, batchId, revision, toTick, inputs, finish }` |
+| `/api/games/:slug/result?sessionId=…` | GET    | Owned completed result                                            |
+| `/api/games/:slug/leaderboard`        | GET    | Best completed result per player                                  |
+| `/api/health`                         | GET    | Database readiness without private content                        |
 
 All endpoints except health, registration and login require an authenticated cookie. API responses are not cached. Passwords use salted scrypt hashes; responses never contain hashes. Unknown-user login performs the same hash derivation as known-user login.
 
@@ -95,9 +106,21 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:browser
+docker build -t dino-games:validation .
+npm run test:containers
 docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet
 ```
 
-Integration and browser suites start temporary real MongoDB instances using `mongodb-memory-server`. The first run downloads MongoDB 7.0.14. Browser tests use an isolated database of synthetic questions and an isolated Next.js server on port 3100. They do not modify `.env` or approve family content. Use `npm run lint:fix` and `npm run format` for automatic fixes.
+Integration and browser suites start temporary real MongoDB instances using `mongodb-memory-server`. The first run downloads MongoDB 7.0.14. Browser tests use an isolated database of synthetic questions and an isolated Next.js server on port 3100. They do not modify `.env` or approve family content. Container verification creates a randomly named, isolated Compose project, checks registration and the content gate, completes a synthetic quiz, recreates both containers, verifies persisted results, and removes only its own temporary stack and volume. Use `npm run lint:fix` and `npm run format` for automatic fixes.
 
 Production deployment, TLS setup, updates, rollback and persistence checks are in [deploy/README.md](deploy/README.md). The accepted plan and subsequent account/organization amendments are in [DINO_GAMES_PLAN.md](DINO_GAMES_PLAN.md).
+
+### Preview on an iPhone
+
+Connect the Mac and iPhone to the same Wi-Fi. Start a LAN preview with the Mac's Wi-Fi IP as the explicit application origin:
+
+```sh
+APP_ORIGIN=http://192.168.1.234:3000 npm run dev -- --hostname 0.0.0.0 --port 3000
+```
+
+Replace the example IP with `ipconfig getifaddr en0`, then open that same URL in Safari. Keep the Mac awake. Local HTTP previews support account cookies and runner checkpoints; production continues to require HTTPS.

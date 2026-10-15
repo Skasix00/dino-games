@@ -33,6 +33,10 @@ jobs:
       - run: npm run test:browser
       - name: Validate production Compose
         run: docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet
+      - name: Build production container
+        run: docker build -t dino-games:validation .
+      - name: Verify container startup and persistence
+        run: npm run test:containers
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -20,5 +20,5 @@ export function useQuestionTimer(
 		return () => window.clearInterval(timer);
 	}, [startedAt, serverNow, running]);
 
-	return Math.max(0, (serverNow ?? 0) - (startedAt ?? 0) + extra);
+	return Math.max(0, (serverNow ?? 0) - (startedAt ?? 0) + (running ? extra : 0));
 }

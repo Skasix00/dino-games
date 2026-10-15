@@ -249,3 +249,102 @@ describe('MongoDB sessions', () => {
 		}
 	});
 });
+
+describe('runner checkpoints and shared rankings', () => {
+	it('starts immediately without approved quiz questions and resumes its saved state', async () => {
+		const auth = await playerIdentity();
+		await (await collections()).questions.deleteMany({});
+		const { startRunner, currentRunner } = await import('../src/server/runner');
+		const starts = await Promise.all([
+			startRunner(auth, 'bennyrex-rush'),
+			startRunner(auth, 'bennyrex-rush'),
+		]);
+		expect(starts[0]._id).toBe(starts[1]._id);
+		expect((await currentRunner(auth, 'bennyrex-rush'))?.runner.state.tick).toBe(0);
+	});
+
+	it('validates scores on the server, handles concurrent retries and isolates runner rankings', async () => {
+		const auth = await playerIdentity();
+		const { startRunner, checkpointRunner, currentRunner, ownedRunner } =
+			await import('../src/server/runner');
+		const run = await startRunner(auth, 'bennyrex-rush');
+		await (
+			await database()
+		)
+			.collection<{ _id: string; startedAt: Date }>('gameSessions')
+			.updateOne({ _id: run._id }, { $set: { startedAt: new Date(Date.now() - 10_000) } });
+		const batch = {
+			sessionId: run._id,
+			batchId: randomUUID(),
+			revision: 0,
+			toTick: 120,
+			inputs: [],
+			finish: false,
+		};
+		const saved = await Promise.all([
+			checkpointRunner(auth, 'bennyrex-rush', batch),
+			checkpointRunner(auth, 'bennyrex-rush', batch),
+		]);
+		expect(saved[0].score).toBe(saved[1].score);
+		expect(saved[0].revision).toBe(1);
+		expect(saved[0].runner.state.tick).toBe(120);
+		expect(saved[0].score).toBeGreaterThan(20);
+		await closeDatabase();
+		expect((await currentRunner(auth, 'bennyrex-rush'))?.runner.state).toEqual(
+			saved[0].runner.state,
+		);
+		await expect(
+			ownedRunner({ ...auth, ownerId: randomUUID() }, 'bennyrex-rush', run._id),
+		).rejects.toMatchObject({ status: 404 });
+		await expect(
+			checkpointRunner(auth, 'bennyrex-rush', { ...batch, batchId: randomUUID() }),
+		).rejects.toMatchObject({ status: 409 });
+		const finished = await checkpointRunner(auth, 'bennyrex-rush', {
+			...batch,
+			batchId: randomUUID(),
+			revision: 1,
+			inputs: [],
+			finish: true,
+		});
+		expect(finished.status).toBe('completed');
+		expect((await leaderboard('bennyrex-rush'))[0].score).toBe(finished.score);
+		expect(await leaderboard('bernardo-quiz')).toHaveLength(0);
+		const replay = await startRunner(auth, 'bennyrex-rush');
+		expect(replay._id).not.toBe(run._id);
+	});
+
+	it('rejects impossible time, browser-supplied score and quiz actions on the runner', async () => {
+		const auth = await playerIdentity();
+		jar.set('dino-session', encodeIdentity(auth));
+		const { startRunner, checkpointRunner } = await import('../src/server/runner');
+		const run = await startRunner(auth, 'bennyrex-rush');
+		const batch = {
+			sessionId: run._id,
+			batchId: randomUUID(),
+			revision: 0,
+			toTick: 600,
+			inputs: [],
+			finish: false,
+		};
+		await expect(checkpointRunner(auth, 'bennyrex-rush', batch)).rejects.toMatchObject({
+			status: 400,
+		});
+		expect(
+			(await request('games/bennyrex-rush/checkpoint', { ...batch, score: 999999 })).status,
+		).toBe(400);
+		expect(
+			(
+				await request('games/bennyrex-rush/answer', {
+					sessionId: run._id,
+					questionId: 'q1',
+					optionId: 'a',
+				})
+			).status,
+		).toBe(404);
+		await expect(changeSession(auth, 'bennyrex-rush', run._id, 'next', 'q1')).rejects.toMatchObject(
+			{ status: 404 },
+		);
+		jar.clear();
+		expect((await request('games/bennyrex-rush/checkpoint', batch)).status).toBe(401);
+	});
+});

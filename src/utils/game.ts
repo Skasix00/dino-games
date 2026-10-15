@@ -3,7 +3,7 @@ export interface GameCardData {
 	slug: string;
 	title: string;
 	description: string;
-	type: 'quiz';
+	type: 'quiz' | 'runner';
 	href: string;
 	label: string;
 	questionCount: number;

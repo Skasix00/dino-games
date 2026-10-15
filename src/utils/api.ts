@@ -8,16 +8,26 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, data?: unknown): Promise<T> {
-	const response = await fetch(`/api/${path}`, {
-		method: data === undefined ? 'GET' : 'POST',
-		headers: data === undefined ? undefined : { 'Content-Type': 'application/json' },
-		body: data === undefined ? undefined : JSON.stringify(data),
-		cache: 'no-store',
-	});
-	const payload = await response.json();
+	let response: Response;
 
-	if (!response.ok) {
-		throw new ApiError(payload.error || 'Não foi possível concluir o pedido.', response.status);
+	try {
+		response = await fetch(`/api/${path}`, {
+			method: data === undefined ? 'GET' : 'POST',
+			headers: data === undefined ? undefined : { 'Content-Type': 'application/json' },
+			body: data === undefined ? undefined : JSON.stringify(data),
+			cache: 'no-store',
+		});
+	} catch {
+		throw new ApiError('A ligação falhou. Verifica a internet e tenta novamente.', 0);
+	}
+
+	const payload = await response.json().catch(() => null);
+
+	if (!response.ok || !payload) {
+		throw new ApiError(
+			payload?.error || 'Não foi possível concluir o pedido. Tenta novamente.',
+			response.status,
+		);
 	}
 
 	return payload as T;

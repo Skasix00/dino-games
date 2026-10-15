@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 const config: NextConfig = {
+	allowedDevOrigins: process.env.APP_ORIGIN ? [new URL(process.env.APP_ORIGIN).hostname] : [],
+	devIndicators: false,
 	output: 'standalone',
 	poweredByHeader: false,
 	async headers() {

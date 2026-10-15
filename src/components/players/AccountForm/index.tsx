@@ -87,7 +87,7 @@ export default function AccountForm({ destination, player }: AccountFormProps) {
 					dispositivo.
 				</p>
 			</div>
-			<div aria-label="Acesso ao utilizador" className="flex gap-3">
+			<div aria-label="Acesso ao utilizador" className="flex flex-wrap gap-3">
 				<button
 					aria-pressed={mode === 'register'}
 					className={`button ${mode === 'login' ? 'secondary' : ''}`}

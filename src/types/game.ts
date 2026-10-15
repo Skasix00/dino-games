@@ -21,7 +21,7 @@ export interface Answer {
 	timeMs: number;
 }
 
-export interface GameSession {
+export interface SharedGameSession {
 	_id: string;
 	ownerId: string;
 	playerId: string;
@@ -33,8 +33,11 @@ export interface GameSession {
 	startedAt: Date;
 	completedAt?: Date;
 	score: number;
-	correctAnswers: number;
 	totalTimeMs: number;
+}
+
+export interface GameSession extends SharedGameSession {
+	correctAnswers: number;
 	quiz: { questions: Snapshot[]; index: number; questionStartedAt: Date; answers: Answer[] };
 }
 
@@ -67,6 +70,8 @@ export interface Player {
 }
 
 export interface RankingRow {
+	distance?: number;
+	coins?: number;
 	playerId: string;
 	displayName: string;
 	score: number;

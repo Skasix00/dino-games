@@ -28,6 +28,10 @@ export function requireGame(slug: string) {
 }
 
 export async function availability(game: GameDefinition) {
+	if (game.type === 'runner') {
+		return { ready: true, bank: [] };
+	}
+
 	const { questions } = await collections();
 	const bank = await questions
 		.find({ gameSlug: game.slug, contentVersion: game.contentVersion })
@@ -78,6 +82,9 @@ export async function requirePlayer(auth: Identity) {
 
 export async function startGame(auth: Identity, slug: string) {
 	const game = requireGame(slug);
+	if (game.type !== 'quiz') {
+		throw new GameError('Este pedido só se aplica ao quiz.', 404);
+	}
 	const player = await requirePlayer(auth);
 	const { sessions } = await collections();
 	const filter = {
@@ -158,6 +165,9 @@ export async function changeSession(
 	optionId?: string,
 ) {
 	const game = requireGame(slug);
+	if (game.type !== 'quiz') {
+		throw new GameError('Este pedido só se aplica ao quiz.', 404);
+	}
 	const arrival = new Date();
 	const { sessions } = await collections();
 	for (let attempt = 0; attempt < 4; attempt++) {
@@ -213,6 +223,8 @@ export async function leaderboard(
 					displayName: '$player.displayName',
 					score: 1,
 					correctAnswers: 1,
+					distance: 1,
+					coins: 1,
 					totalTimeMs: 1,
 					completedAt: 1,
 				},

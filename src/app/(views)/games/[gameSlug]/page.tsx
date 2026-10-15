@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import QuizGame from '@/components/games/QuizGame';
+import RunnerGame from '@/components/games/RunnerGame';
 import { requirePageAccess } from '@/server/pages';
 import { cardData, getGame } from '@/settings/games';
 
@@ -13,6 +14,10 @@ export default async function Page({ params }: { params: Promise<{ gameSlug: str
 	}
 
 	const auth = await requirePageAccess(game.href);
+
+	if (game.type === 'runner') {
+		return <RunnerGame game={cardData(game)} />;
+	}
 
 	return <QuizGame game={cardData(game)} hasPlayer={!!auth.playerId} />;
 }

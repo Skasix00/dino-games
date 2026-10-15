@@ -7,7 +7,7 @@ FROM dependencies AS build
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
-RUN mkdir -p /seed && ./node_modules/.bin/esbuild scripts/seed-questions.ts --bundle --platform=node --format=esm --packages=external --outfile=/seed/seed.mjs
+RUN mkdir -p /seed && ./node_modules/.bin/esbuild scripts/seed-questions.ts --bundle --platform=node --format=esm --external:mongodb --outfile=/seed/seed.mjs
 
 FROM node:24-alpine AS production
 WORKDIR /app

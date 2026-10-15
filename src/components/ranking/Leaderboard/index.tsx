@@ -2,9 +2,10 @@
 
 import type { RankingRow } from '@/types/game';
 import type { GameCardData } from '@/utils/game';
+import type { ChangeEvent } from 'react';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import Notice from '@/components/common/Notice';
 import { api, errorMessage } from '@/utils/api';
@@ -19,28 +20,42 @@ interface LeaderboardProps {
 
 export default function Leaderboard({ games, initialGame }: LeaderboardProps) {
 	const [slug, setSlug] = useState(initialGame);
+	const requestVersion = useRef(0);
 	const [rows, setRows] = useState<RankingRow[]>([]);
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(true);
 	const game = games.find((item) => item.slug === slug)!;
 
 	const load = useCallback(async () => {
+		const version = ++requestVersion.current;
 		setLoading(true);
 
 		try {
 			const response = await api<{ rows: RankingRow[] }>(`games/${slug}/leaderboard`);
+			if (version !== requestVersion.current) {
+				return;
+			}
 			setRows(response.rows);
 			setError('');
 		} catch (error) {
-			setError(errorMessage(error));
+			if (version === requestVersion.current) {
+				setError(errorMessage(error));
+			}
 		} finally {
-			setLoading(false);
+			if (version === requestVersion.current) {
+				setLoading(false);
+			}
 		}
 	}, [slug]);
 
 	useEffect(() => {
 		void Promise.resolve().then(load);
 	}, [load]);
+
+	function selectGame(event: ChangeEvent<HTMLSelectElement>) {
+		setLoading(true);
+		setSlug(event.target.value);
+	}
 
 	return (
 		<div className="page-container">
@@ -51,11 +66,7 @@ export default function Leaderboard({ games, initialGame }: LeaderboardProps) {
 				<div className={styles.toolbar}>
 					<div>
 						<label htmlFor="ranking-game">Escolher jogo</label>
-						<select
-							id="ranking-game"
-							onChange={(event) => setSlug(event.target.value)}
-							value={slug}
-						>
+						<select id="ranking-game" onChange={selectGame} value={slug}>
 							{games.map((item) => (
 								<option key={item.slug} value={item.slug}>
 									{item.title}
@@ -98,9 +109,9 @@ export default function Leaderboard({ games, initialGame }: LeaderboardProps) {
 								<tr>
 									<th scope="col">Lugar</th>
 									<th scope="col">Jogador</th>
-									<th scope="col">Certas</th>
+									<th scope="col">{game.type === 'runner' ? 'Distância' : 'Certas'}</th>
 									<th scope="col">Pontos</th>
-									<th scope="col">Tempo</th>
+									<th scope="col">{game.type === 'runner' ? 'Moedas' : 'Tempo'}</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -111,10 +122,18 @@ export default function Leaderboard({ games, initialGame }: LeaderboardProps) {
 										</td>
 										<th scope="row">{row.displayName}</th>
 										<td>
-											{row.correctAnswers}/{game.questionCount}
+											{game.type === 'runner'
+												? `${row.distance ?? 0} m`
+												: `${row.correctAnswers}/${game.questionCount}`}
 										</td>
 										<td>{row.score}</td>
-										<td title={`${row.totalTimeMs} ms`}>{formatTime(row.totalTimeMs)}</td>
+										<td>
+											{game.type === 'runner' ? (
+												(row.coins ?? 0)
+											) : (
+												<span title={`${row.totalTimeMs} ms`}>{formatTime(row.totalTimeMs)}</span>
+											)}
+										</td>
 									</tr>
 								))}
 							</tbody>
@@ -122,8 +141,10 @@ export default function Leaderboard({ games, initialGame }: LeaderboardProps) {
 					</div>
 				)}
 				<p className="muted text-xs mt-6 mb-0">
-					Mais respostas certas primeiro. Em caso de empate, ganha o menor tempo; depois, quem
-					terminou primeiro. Só conta a melhor partida de cada jogador.
+					{game.type === 'runner'
+						? 'Cada metro vale 1 ponto e cada moeda vale 10. Em caso de empate, conta a maior distância e depois quem terminou primeiro.'
+						: 'Mais respostas certas primeiro. Em caso de empate, ganha o menor tempo; depois, quem terminou primeiro.'}{' '}
+					Só conta a melhor partida de cada jogador.
 				</p>
 			</section>
 		</div>
