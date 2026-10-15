@@ -19,7 +19,7 @@ docker compose --env-file .env exec app node seed.mjs
 docker compose --env-file .env ps
 ```
 
-The shipped question bank remains locked. Approve content in the repository and publish a new image before reseeding to enable the quiz. Indexes are created by application startup and the seed command. Database changes never alter existing attempt snapshots.
+This image enables the 16 answered quiz questions; question 4 stays stored but disabled. After pulling this update, run the seed command above to install content version 2. Indexes are created by application startup and the seed command. Database changes never alter existing attempt snapshots.
 
 ## 2. Connect the existing NCN proxy
 
@@ -84,7 +84,7 @@ To roll back proxy integration, run NCN Compose with its original file alone and
 
 - Verify NiceNails before and after proxy changes, both homepage and `/admin`.
 - Verify Dino Games redirects HTTP to HTTPS and `/api/health` reports `ok`.
-- Create a test user. Confirm it survives `docker compose up -d --force-recreate` of the Dino stack. Once content is approved, complete a run and verify its ranking also survives recreation.
+- Create a test user. Confirm it survives `docker compose up -d --force-recreate` of the Dino stack. Complete a run and verify its ranking also survives recreation.
 - Inspect published ports: MongoDB and the app must have none in production. Only NCN publishes 80/443.
 - Check refresh recovery, account login on another device and multiple simultaneous players.
 - Check `docker compose logs --tail 100 app mongo` for startup errors; keep secrets out of support messages.

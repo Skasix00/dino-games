@@ -1,5 +1,6 @@
 import type { ObstacleKind, RunnerState } from '@/types/runner';
 
+import { CURRENT_RUNNER_RULES } from '@/utils/runner/difficulty';
 import { jumpHeight, runnerRow } from '@/utils/runner/engine';
 
 const WIDTH = 400;
@@ -347,6 +348,7 @@ export function drawRunner(
 	state: RunnerState,
 	seed: number,
 	visualLane: number,
+	rulesVersion = CURRENT_RUNNER_RULES,
 ) {
 	const context = canvas.getContext('2d');
 
@@ -367,8 +369,8 @@ export function drawRunner(
 	scenery(context, state.distance);
 	const firstRow = Math.max(0, state.nextRow - 1);
 
-	for (let index = firstRow + 5; index >= firstRow; index--) {
-		const row = runnerRow(seed, index);
+	for (let index = firstRow + 9; index >= firstRow; index--) {
+		const row = runnerRow(seed, index, rulesVersion);
 		const z = row.distance - state.distance;
 
 		if (z < -5 || z > 120) {

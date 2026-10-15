@@ -10,6 +10,7 @@ const questionSchema = z.object({
 	options: z.array(z.object({ id: z.string(), text: z.string().min(1) })).length(4),
 	correctOptionId: z.string().nullable(),
 	approved: z.boolean(),
+	enabled: z.boolean().default(true),
 });
 const bank = z
 	.object({

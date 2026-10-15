@@ -1,5 +1,7 @@
 import type { GameCardData } from '@/utils/game';
 
+import { CURRENT_RUNNER_RULES } from '@/utils/runner/difficulty';
+
 import 'server-only';
 export type GameDefinition = GameCardData & {
 	rulesVersion: string;
@@ -17,9 +19,9 @@ export const games: GameDefinition[] = [
 		type: 'quiz',
 		href: '/games/bernardo-quiz',
 		label: 'O QUIZ DO ANIVERSARIANTE',
-		questionCount: 17,
+		questionCount: 16,
 		rulesVersion: '1',
-		contentVersion: '1',
+		contentVersion: '2',
 		pointsPerAnswer: 100,
 		ranking: { score: -1, totalTimeMs: 1, completedAt: 1, _id: 1 },
 	},
@@ -32,7 +34,7 @@ export const games: GameDefinition[] = [
 		href: '/games/bennyrex-rush',
 		label: 'UMA CORRIDA JURÁSSICA',
 		questionCount: 0,
-		rulesVersion: '1',
+		rulesVersion: CURRENT_RUNNER_RULES,
 		contentVersion: '1',
 		pointsPerAnswer: 0,
 		ranking: { score: -1, distance: -1, completedAt: 1, _id: 1 },

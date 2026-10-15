@@ -34,7 +34,7 @@ export async function availability(game: GameDefinition) {
 
 	const { questions } = await collections();
 	const bank = await questions
-		.find({ gameSlug: game.slug, contentVersion: game.contentVersion })
+		.find({ gameSlug: game.slug, contentVersion: game.contentVersion, enabled: { $ne: false } })
 		.sort({ order: 1 })
 		.toArray();
 

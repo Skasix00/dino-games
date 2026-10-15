@@ -9,6 +9,7 @@ import {
 	normalizeName,
 	publicSession,
 } from '../src/server/quiz';
+import { games } from '../src/settings/games';
 import { fixtureQuestions } from './fixtures';
 
 const initial = new Date('2026-10-24T15:00:00Z');
@@ -28,11 +29,16 @@ function createSession() {
 }
 
 describe('quiz rules', () => {
-	it('retains all 17 supplied questions and blocks the unapproved bank', () => {
+	it('enables the 16 answered questions and retains the pending first-tooth question', () => {
 		expect(content.questions).toHaveLength(17);
 		expect(content.questions[3].correctOptionId).toBeNull();
 		expect(content.questions[11].options[0].text).toBe('24/10/2025');
 		expect(isReady(content.questions, 17)).toBe(false);
+		const enabled = content.questions.filter((question) => question.enabled);
+		expect(enabled).toHaveLength(16);
+		expect(enabled.some((question) => question.id === 'q04')).toBe(false);
+		expect(isReady(enabled, games[0].questionCount)).toBe(true);
+		expect(games[0].contentVersion).toBe(content.contentVersion);
 		expect(isReady(fixtureQuestions, 17)).toBe(true);
 		expect(isReady(fixtureQuestions.slice(1), 17)).toBe(false);
 	});
@@ -40,6 +46,7 @@ describe('quiz rules', () => {
 	it('rejects duplicate options, missing answers and unapproved content', () => {
 		for (const change of [
 			{ approved: false },
+			{ enabled: false },
 			{ correctOptionId: 'missing' },
 			{ options: Array.from({ length: 4 }, () => ({ id: 'a', text: 'same' })) },
 		]) {

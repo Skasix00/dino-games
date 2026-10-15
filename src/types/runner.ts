@@ -41,6 +41,7 @@ export interface RunnerSession extends SharedGameSession {
 }
 
 export interface RunnerView {
+	rulesVersion: string;
 	id: string;
 	status: 'active' | 'completed';
 	revision: number;
@@ -61,6 +62,7 @@ export interface RunnerBatch {
 export type RunnerMode = 'loading' | 'ready' | 'running' | 'paused' | 'saving' | 'finished';
 
 export interface RunnerDisplay {
+	rulesVersion: string;
 	mode: RunnerMode;
 	state: RunnerState;
 	error: string;

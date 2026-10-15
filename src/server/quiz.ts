@@ -23,7 +23,8 @@ export function isReady(questions: Question[], count: number) {
 			(q) =>
 				q.approved &&
 				q.order >= 1 &&
-				q.order <= count &&
+				Number.isSafeInteger(q.order) &&
+				q.enabled !== false &&
 				q.text.trim() &&
 				q.options.length === 4 &&
 				new Set(q.options.map((o) => o.id)).size === 4 &&

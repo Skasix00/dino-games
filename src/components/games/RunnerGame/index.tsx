@@ -6,6 +6,7 @@ import type { GameCardData } from '@/utils/game';
 import Link from 'next/link';
 
 import { useRunner } from '@/hooks/useRunner';
+import { runnerLevel, runnerLevelProgress } from '@/utils/runner/difficulty';
 
 import styles from './styles.module.css';
 
@@ -18,7 +19,9 @@ const controls: { action: RunnerAction; symbol: string; label: string }[] = [
 
 export default function RunnerGame({ game }: { game: GameCardData }) {
 	const { canvasRef, controllerRef, display } = useRunner();
-	const { mode, state, error, busy } = display;
+	const { mode, state, error, busy, rulesVersion } = display;
+	const level = runnerLevel(state, rulesVersion);
+	const legacy = rulesVersion === '1';
 	const playing = mode !== 'ready' && mode !== 'loading';
 
 	return (
@@ -68,6 +71,18 @@ export default function RunnerGame({ game }: { game: GameCardData }) {
 							{state.coins}
 						</strong>
 					</div>
+					<div aria-label="Nível atual" aria-live="polite" className={styles.level}>
+						<span>NÍVEL</span>
+						<strong>{level}</strong>
+					</div>
+					{!legacy && (
+						<progress
+							aria-label={`Progresso para o nível ${level + 1}`}
+							className={styles.levelProgress}
+							max={1}
+							value={runnerLevelProgress(state)}
+						/>
+					)}
 				</div>
 				{mode !== 'running' && (
 					<div className={styles.shade}>
@@ -85,12 +100,13 @@ export default function RunnerGame({ game }: { game: GameCardData }) {
 									<p>
 										Um dinossauro. Três faixas.
 										<br />
-										Quantos metros consegues correr?
+										Até que nível consegues chegar?
 									</p>
 									<div className={styles.instructions}>
 										<span>↔ Muda de faixa</span>
 										<span>↑ Salta caixas</span>
 										<span>↓ Passa por baixo</span>
+										<span>Mais velocidade e obstáculos a cada nível</span>
 									</div>
 									<button
 										className={styles.primary}
@@ -114,7 +130,7 @@ export default function RunnerGame({ game }: { game: GameCardData }) {
 										{state.score.toLocaleString('pt-PT')}
 									</strong>
 									<p>
-										pontos · {Math.floor(state.distance)} m · {state.coins} moedas
+										pontos · Nível {level} · {Math.floor(state.distance)} m · {state.coins} moedas
 									</p>
 									{display.rank && (
 										<p className={styles.rank}>
@@ -143,7 +159,7 @@ export default function RunnerGame({ game }: { game: GameCardData }) {
 									<p className={styles.eyebrow}>ATÉ OS DINOS RESPIRAM</p>
 									<h2>Pausa para as patas.</h2>
 									<p>
-										A corrida está em pausa.
+										Nível {level} · A corrida está em pausa.
 										<br />
 										Continua quando estiveres pronto.
 									</p>
@@ -199,9 +215,11 @@ export default function RunnerGame({ game }: { game: GameCardData }) {
 				))}
 			</div>
 			<p className={styles.hint}>
-				{mode === 'running'
-					? 'Apanha moedas. Evita os carrinhos. Vai mais longe!'
-					: '1 metro = 1 ponto · 1 moeda = 10 pontos'}
+				{legacy
+					? 'Corrida anterior · Novas corridas têm dificuldade por níveis'
+					: mode === 'running'
+						? 'Apanha moedas. Evita os carrinhos. Vai mais longe!'
+						: '1 metro = 1 ponto · 1 moeda = 10 pontos'}
 			</p>
 		</div>
 	);

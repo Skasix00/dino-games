@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { spawn } from 'node:child_process';
 
+import content from '../src/content/bernardo.json';
 import { fixtureQuestions } from '../tests/fixtures';
 
 const mongo = await MongoMemoryServer.create({ binary: { version: '7.0.14' } });
@@ -12,11 +13,13 @@ try {
 		.db('dino_browser_tests')
 		.collection('questions')
 		.insertMany(
-			fixtureQuestions.map((question) => ({
-				...question,
-				gameSlug: 'bernardo-quiz',
-				contentVersion: '1',
-			})),
+			fixtureQuestions
+				.slice(0, content.questions.filter((question) => question.enabled).length)
+				.map((question) => ({
+					...question,
+					gameSlug: 'bernardo-quiz',
+					contentVersion: content.contentVersion,
+				})),
 		);
 	await client.close();
 	const code = await new Promise<number>((resolve, reject) => {

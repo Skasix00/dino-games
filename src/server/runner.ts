@@ -98,7 +98,7 @@ export async function startRunner(auth: Identity, slug: string) {
 }
 
 export async function checkpointRunner(auth: Identity, slug: string, batch: RunnerBatch) {
-	const game = requireRunner(slug);
+	requireRunner(slug);
 	const current = await ownedRunner(auth, slug, batch.sessionId);
 
 	if (current.runner.lastBatchId === batch.batchId) {
@@ -112,7 +112,7 @@ export async function checkpointRunner(auth: Identity, slug: string, batch: Runn
 		);
 	}
 
-	if (current.rulesVersion !== game.rulesVersion) {
+	if (!['1', '2'].includes(current.rulesVersion)) {
 		throw new GameError('Esta versão da corrida já não está disponível.', 409);
 	}
 
@@ -123,7 +123,13 @@ export async function checkpointRunner(auth: Identity, slug: string, batch: Runn
 	let state;
 
 	try {
-		state = simulateRunner(current.runner.state, current.runner.seed, batch.toTick, batch.inputs);
+		state = simulateRunner(
+			current.runner.state,
+			current.runner.seed,
+			batch.toTick,
+			batch.inputs,
+			current.rulesVersion,
+		);
 	} catch {
 		throw new GameError('Os movimentos da corrida não são válidos.', 400);
 	}
@@ -163,6 +169,7 @@ export async function checkpointRunner(auth: Identity, slug: string, batch: Runn
 export async function runnerResponse(run: RunnerSession): Promise<RunnerView> {
 	const view: RunnerView = {
 		id: run._id,
+		rulesVersion: run.rulesVersion,
 		status: run.status,
 		revision: run.revision,
 		seed: run.runner.seed,

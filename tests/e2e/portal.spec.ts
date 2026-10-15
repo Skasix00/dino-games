@@ -26,8 +26,8 @@ test('mobile portal, own account, quiz completion, refresh, replay and ranking',
 		{ times: 1 },
 	);
 
-	for (let index = 1; index <= 17; index++) {
-		await expect(page.getByText(`Pergunta ${index} de 17`, { exact: true })).toBeVisible();
+	for (let index = 1; index <= 16; index++) {
+		await expect(page.getByText(`Pergunta ${index} de 16`, { exact: true })).toBeVisible();
 		if (index === 2) {
 			const question = await page.getByRole('heading', { level: 2 }).textContent();
 			await page.reload();
@@ -37,16 +37,16 @@ test('mobile portal, own account, quiz completion, refresh, replay and ranking',
 		if (index === 1) {
 			await page.getByRole('button', { name: 'Tentar novamente' }).click();
 		}
-		if (index < 17) {
+		if (index < 16) {
 			await expect(page.getByText('Boa! Acertaste. +100 pontos')).toBeVisible();
 			await page.getByRole('button', { name: 'Seguinte' }).click();
 		}
 	}
 
 	await expect(page.getByRole('heading', { name: 'Boa, dinossauro!' })).toBeVisible();
-	await expect(page.getByText('1700', { exact: true })).toBeVisible();
+	await expect(page.getByText('1600', { exact: true })).toBeVisible();
 	await page.getByRole('link', { name: 'Ver o ranking da família' }).click();
-	await expect(page.getByRole('cell', { name: '1700', exact: true })).toBeVisible();
+	await expect(page.getByRole('cell', { name: '1600', exact: true })).toBeVisible();
 	await expect(page.getByRole('rowheader', { name: 'Jogador Mobile' })).toBeVisible();
 	await page.getByRole('link', { name: 'Jogos', exact: true }).click();
 	await page
@@ -55,7 +55,7 @@ test('mobile portal, own account, quiz completion, refresh, replay and ranking',
 		.getByRole('link', { name: 'Jogar', exact: true })
 		.click();
 	await page.getByRole('button', { name: 'Jogar outra vez' }).click();
-	await expect(page.getByText('Pergunta 1 de 17', { exact: true })).toBeVisible();
+	await expect(page.getByText('Pergunta 1 de 16', { exact: true })).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
 		true,
 	);

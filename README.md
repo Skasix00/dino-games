@@ -2,7 +2,7 @@
 
 BennyRex's family game portal, in Portuguese (Portugal). Next.js App Router, TypeScript, Tailwind CSS and MongoDB. The portal includes Bernardo's quiz and **BennyRex Rush**, an original dinosaur endless runner for mobile.
 
-**The quiz intentionally starts locked.** Question 4 has no supplied answer and the proposed answer choices are not approved. Test fixtures are synthetic and never unlock production content.
+**The quiz is enabled with 16 questions (maximum 1,600 points).** All 17 supplied questions remain in the content file. Question 4 is disabled and unanswered until its correct answer is confirmed; it is never shown or scored.
 
 ## Local development
 
@@ -54,23 +54,21 @@ Reference conventions: [Carris ESLint](https://github.com/carrismetropolitana/es
 
 ## Content approval and new games
 
-Edit `src/content/bernardo.json`. Review every question and its four options. Supply the confirmed `correctOptionId` for question 4, then mark each reviewed question `approved: true`. Seeding incomplete content is allowed; starting a game is not. Run `npm run seed` again. Existing attempts keep their snapshots, selected option order and elapsed times.
+The current content version is `2`. Run `npm run seed` locally (or `docker compose --env-file .env exec app node seed.mjs` on the server after updating the image) to install the enabled quiz. To restore question 4 later, set its confirmed `correctOptionId`, `approved: true` and `enabled: true` in `src/content/bernardo.json`, increase the registry question count to 17, and bump the content version in both places before reseeding. Enabled questions must all pass validation; explicitly disabled questions are retained but excluded. Existing attempts keep their snapshots, selected option order and elapsed times.
 
 When changing published content, increment `contentVersion` in both the source and `src/settings/games.ts`. Rankings separate content/rules versions. Do not change `rulesVersion` during an event with active games. Keep the published scoring implementation available if introducing another rules version later.
 
 To add a quiz, add its registry entry and content seed, then reuse the account, quiz renderer and ranking components. Adding a different game type requires a renderer and its server rules, plus a page dispatch branch and ranking configuration. There is no separate games database or CMS.
 
-Question 8 currently has the supplied binary wording but four draft options describing different delivery methods. Review that wording and the distinctions along with all other distractors before approval.
-
 ## BennyRex Rush
 
 Choose **BennyRex Rush** in the portal or open `/games/bennyrex-rush`. The playable character is an animated green dinosaur with a party hat. Swipe left/right to change between three lanes, up to jump over crates, and down to slide under striped barriers. Pizza carts require changing lanes. Buttons and arrow/WASD keys provide alternative controls; Space jumps and Escape/P pauses.
 
-Each metre earns one point, and each coin earns ten. Coin trails award five coins when crossed. Speed increases gradually; every obstacle row has at least one clear lane. Collisions end the run. Pause allows resuming or saving the current score, and backgrounding the browser pauses automatically. Runs use the full mobile viewport with safe-area spacing and large controls.
+Each metre earns one point, and each coin earns ten. Coin trails award five coins when crossed. New runs use rules version `2`: level 1 starts at 18 m/s, with a new level every 200 metres. Speed increases continuously towards 42 m/s, obstacle gaps gradually shrink from 24 to 16 metres, and level 2 onward has two obstacles per row. The HUD shows the current level and progress to the next. Every obstacle row retains a clear lane. Collisions end the run. Pause allows resuming or saving the current score, and backgrounding the browser pauses automatically. Runs use the full mobile viewport with safe-area spacing and large controls.
 
 The browser and server share a seeded, fixed-step simulation. Movement checkpoints are sent approximately every three seconds. The server replays inputs, checks elapsed time and session ownership, and derives distance, coins, collisions and score itself. It never trusts a submitted score. Requests are bounded and revision-checked; retries cannot score twice. Network failures pause progress and allow retrying the same checkpoint. Refresh resumes the last acknowledged checkpoint, so up to a few unsaved seconds may be lost on abrupt closure.
 
-Runner sessions share `gameSessions`, player accounts and the leaderboard service, with their own runner state and game slug. Rankings compare score, distance, then earliest completion. Quiz rankings and the pending quiz-content approval are unaffected. Adding this game needs no database migration, seed approval or new dependency.
+Runner sessions share `gameSessions`, player accounts and the leaderboard service, with their own runner state and game slug. Rankings compare score, distance, then earliest completion. Existing version 1 runs can still finish using their original physics, and their results stay in their original ranking version. New runs use the harder version 2 ranking. No database migration or new dependency is needed.
 
 ## API
 
@@ -111,7 +109,7 @@ npm run test:containers
 docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet
 ```
 
-Integration and browser suites start temporary real MongoDB instances using `mongodb-memory-server`. The first run downloads MongoDB 7.0.14. Browser tests use an isolated database of synthetic questions and an isolated Next.js server on port 3100. They do not modify `.env` or approve family content. Container verification creates a randomly named, isolated Compose project, checks registration and the content gate, completes a synthetic quiz, recreates both containers, verifies persisted results, and removes only its own temporary stack and volume. Use `npm run lint:fix` and `npm run format` for automatic fixes.
+Integration and browser suites start temporary real MongoDB instances using `mongodb-memory-server`. The first run downloads MongoDB 7.0.14. Browser tests use an isolated database of synthetic questions and an isolated Next.js server on port 3100. They do not modify `.env` or approve family content. Container verification creates a randomly named, isolated Compose project, checks registration and the enabled 16-question quiz, completes the seeded quiz without question 4, recreates both containers, verifies persisted results, and removes only its own temporary stack and volume. Use `npm run lint:fix` and `npm run format` for automatic fixes.
 
 Production deployment, TLS setup, updates, rollback and persistence checks are in [deploy/README.md](deploy/README.md). The accepted plan and subsequent account/organization amendments are in [DINO_GAMES_PLAN.md](DINO_GAMES_PLAN.md).
 

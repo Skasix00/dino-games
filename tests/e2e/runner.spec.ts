@@ -46,6 +46,11 @@ test('mobile dinosaur runner: swipes, jump, slide, pause, lost response retry, r
 	await start(page);
 	const canvas = page.locator('canvas');
 	await expect(canvas).toHaveAttribute('aria-label', /dinossauro BennyRex/);
+	await expect(page.getByLabel('Nível atual')).toHaveText('NÍVEL1');
+	await expect(page.getByRole('progressbar')).toHaveAttribute(
+		'aria-label',
+		'Progresso para o nível 2',
+	);
 	await swipe(page, -90, 0);
 	await expect(canvas).toHaveAttribute('data-lane', '0');
 	await page.getByRole('button', { name: 'Direita', exact: true }).click();
@@ -115,4 +120,55 @@ test('collision saves the run, replay starts fresh, and backgrounding pauses', a
 	await page.setViewportSize({ width: 320, height: 640 });
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	await page.screenshot({ path: 'test-results/mobile-runner-paused-small.png' });
+});
+
+test('continuous play reaches level 2 and keeps that level after refresh', async ({ page }) => {
+	await account(page, 'Dino Levels');
+	const session = await start(page);
+	const rows = Array.from({ length: 30 }, (_, index) => runnerRow(session.seed, index));
+
+	// Steer through the generated clear lanes using the same on-screen controls as a player.
+	await page.evaluate(async (route) => {
+		await new Promise<void>((resolve, reject) => {
+			const deadline = Date.now() + 30_000;
+			const timer = setInterval(() => {
+				const level = document.querySelector('[aria-label="Nível atual"] strong')?.textContent;
+				if (level === '2') {
+					clearInterval(timer);
+					resolve();
+
+					return;
+				}
+				if (Date.now() > deadline) {
+					clearInterval(timer);
+					reject(new Error('The run did not reach level 2'));
+
+					return;
+				}
+				const metres = Number(
+					document.querySelectorAll('[aria-label="Pontuação da corrida"] strong')[1]?.textContent,
+				);
+				const lane = Number(document.querySelector('canvas')?.getAttribute('data-lane'));
+				const next = route.find((row) => row.distance > metres);
+				if (next && next.coinLane !== lane) {
+					const direction = next.coinLane < lane ? 'Esquerda' : 'Direita';
+					document.querySelector<HTMLButtonElement>(`button[aria-label="${direction}"]`)?.click();
+				}
+			}, 120);
+		});
+	}, rows);
+
+	await expect(page.getByLabel('Nível atual')).toHaveText('NÍVEL2');
+	await expect(page.getByRole('progressbar')).toHaveAttribute(
+		'aria-label',
+		'Progresso para o nível 3',
+	);
+	await page.getByRole('button', { name: 'Pausar corrida' }).click();
+	await expect(page.getByRole('button', { name: 'Continuar' })).toBeEnabled();
+	await page.reload();
+	await expect(page.getByLabel('Nível atual')).toHaveText('NÍVEL2');
+	await page.screenshot({ path: 'test-results/mobile-runner-level-2.png' });
+	await page.getByRole('button', { name: 'Terminar e guardar pontos' }).click();
+	await expect(page.getByRole('heading', { name: 'Boa corrida!' })).toBeVisible();
+	await expect(page.getByText(/pontos · Nível 2/)).toBeVisible();
 });

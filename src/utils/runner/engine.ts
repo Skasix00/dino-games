@@ -6,15 +6,13 @@ import type {
 	RunnerState,
 } from '@/types/runner';
 
+import { CURRENT_RUNNER_RULES, runnerLevel, runnerRowDistance } from '@/utils/runner/difficulty';
+
 export const RUNNER_FPS = 60;
 
 export const JUMP_TICKS = 54;
 
 export const SLIDE_TICKS = 48;
-
-export const ROW_SPACING = 26;
-
-export const FIRST_ROW = 65;
 
 export const MAX_BATCH_TICKS = 600;
 
@@ -41,23 +39,39 @@ function randomForRow(seed: number, row: number) {
 	return (value ^ (value >>> 15)) >>> 0;
 }
 
-export function runnerRow(seed: number, index: number): RunnerRow {
+export function runnerRow(
+	seed: number,
+	index: number,
+	rulesVersion = CURRENT_RUNNER_RULES,
+): RunnerRow {
 	const value = randomForRow(seed, index);
 	const coinLane = value % 3;
 	const kinds: ObstacleKind[] = ['crate', 'arch', 'cart'];
 	const blockedLane = (coinLane + 1 + ((value >>> 4) % 2)) % 3;
 	const obstacles: RunnerRow['obstacles'] = [{ lane: blockedLane, kind: kinds[(value >>> 8) % 3] }];
 
-	// Every row always has a completely clear lane. Early rows teach one obstacle at a time.
-	if (index > 3 && (value >>> 12) % 3 !== 0) {
+	const distance = runnerRowDistance(index, rulesVersion);
+	const level = runnerLevel({ distance }, rulesVersion);
+	const secondObstacle =
+		rulesVersion === '1'
+			? index > 3 && (value >>> 12) % 3 !== 0
+			: index >= 2 && (level >= 2 || (value >>> 12) % 3 !== 0);
+
+	// Two obstacles become the norm at level 2, with one clear lane in every row.
+	if (secondObstacle) {
 		obstacles.push({ lane: 3 - coinLane - blockedLane, kind: kinds[(value >>> 16) % 3] });
 	}
 
-	return { index, distance: FIRST_ROW + index * ROW_SPACING, coinLane, obstacles };
+	return { index, distance, coinLane, obstacles };
 }
 
-export function runnerSpeed(state: RunnerState) {
-	return Math.min(27, 13 + state.tick / (RUNNER_FPS * 12));
+export function runnerSpeed(state: RunnerState, rulesVersion = CURRENT_RUNNER_RULES) {
+	if (rulesVersion === '1') {
+		return Math.min(27, 13 + state.tick / (RUNNER_FPS * 12));
+	}
+
+	// Continuous acceleration across level boundaries, approaching a mobile-playable limit.
+	return 18 + 24 * (1 - Math.exp(-state.distance / 1200));
 }
 
 export function jumpHeight(state: RunnerState) {
@@ -89,7 +103,12 @@ function applyInput(state: RunnerState, action: RunnerAction) {
 }
 
 // One deterministic fixed step. Both browser animation and server validation use this function.
-export function stepRunner(state: RunnerState, seed: number, action?: RunnerAction) {
+export function stepRunner(
+	state: RunnerState,
+	seed: number,
+	action?: RunnerAction,
+	rulesVersion = CURRENT_RUNNER_RULES,
+) {
 	if (state.dead) {
 		return;
 	}
@@ -100,8 +119,8 @@ export function stepRunner(state: RunnerState, seed: number, action?: RunnerActi
 		applyInput(state, action);
 	}
 
-	state.distance += runnerSpeed(state) / RUNNER_FPS;
-	const row = runnerRow(seed, state.nextRow);
+	state.distance += runnerSpeed(state, rulesVersion) / RUNNER_FPS;
+	const row = runnerRow(seed, state.nextRow, rulesVersion);
 
 	if (state.distance >= row.distance) {
 		const obstacle = row.obstacles.find((item) => item.lane === state.lane);
@@ -130,6 +149,7 @@ export function simulateRunner(
 	seed: number,
 	toTick: number,
 	inputs: RunnerInput[],
+	rulesVersion = CURRENT_RUNNER_RULES,
 ) {
 	if (
 		!Number.isSafeInteger(toTick) ||
@@ -154,7 +174,7 @@ export function simulateRunner(
 	while (result.tick < toTick && !result.dead) {
 		const input = inputs[cursor];
 		const action = input?.tick === result.tick + 1 ? input.action : undefined;
-		stepRunner(result, seed, action);
+		stepRunner(result, seed, action, rulesVersion);
 
 		if (action) {
 			cursor += 1;

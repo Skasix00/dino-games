@@ -3,6 +3,12 @@ import type { ObstacleKind, RunnerAction, RunnerInput } from '../src/types/runne
 import { describe, expect, it } from 'vitest';
 
 import {
+	LEVEL_DISTANCE,
+	runnerLevel,
+	runnerLevelProgress,
+	runnerRowDistance,
+} from '../src/utils/runner/difficulty';
+import {
 	initialRunnerState,
 	MAX_BATCH_TICKS,
 	runnerRow,
@@ -85,7 +91,7 @@ describe('BennyRex deterministic runner', () => {
 		expect(state.dead).toBe(false);
 		expect(state.coins).toBe(5);
 		expect(state.score).toBe(Math.floor(state.distance) + 50);
-		expect(runnerSpeed({ ...state, tick: 100_000 })).toBe(27);
+		expect(runnerSpeed({ ...state, distance: 100_000 })).toBeCloseTo(42);
 	});
 
 	it('replays movement identically in whole or split checkpoints', () => {
@@ -113,5 +119,81 @@ describe('BennyRex deterministic runner', () => {
 		expect(() => simulateRunner(state, 1, 10, [{ tick: 11, action: 'left' }])).toThrow();
 		const dead = hitObstacle('cart');
 		expect(() => simulateRunner(dead, 1, dead.tick + 1, [])).toThrow();
+	});
+});
+
+describe('continuous runner levels', () => {
+	it('levels up every 200 metres without a speed jump or a reset', () => {
+		const state = initialRunnerState();
+		expect(runnerLevel(state)).toBe(1);
+		expect(runnerLevel({ distance: 199.99 })).toBe(1);
+		expect(runnerLevel({ distance: 200 })).toBe(2);
+		expect(runnerLevel({ distance: 2000 })).toBe(11);
+		expect(runnerLevelProgress({ distance: 100 })).toBe(0.5);
+		expect(runnerLevelProgress({ distance: 200 })).toBe(0);
+		for (let level = 1; level <= 30; level++) {
+			const distance = level * LEVEL_DISTANCE;
+			const before = runnerSpeed({ ...state, distance: distance - 0.01 });
+			const after = runnerSpeed({ ...state, distance });
+			expect(after).toBeGreaterThan(before);
+			expect(after - before).toBeLessThan(0.001);
+			expect(after).toBeLessThanOrEqual(42);
+		}
+	});
+
+	it('tightens obstacle spacing and increases density while preserving an escape route', () => {
+		let previousGap = 25;
+		for (let index = 1; index <= 400; index++) {
+			const gap = runnerRowDistance(index) - runnerRowDistance(index - 1);
+			expect(gap).toBeGreaterThanOrEqual(16 - 1e-9);
+			expect(gap).toBeLessThanOrEqual(previousGap + 1e-9);
+			previousGap = gap;
+			const row = runnerRow(42, index);
+			if (row.distance >= 200) {
+				expect(row.obstacles).toHaveLength(2);
+			}
+			expect(row.obstacles.some((item) => item.lane === row.coinLane)).toBe(false);
+		}
+	});
+
+	it('keeps legacy physics for existing attempts', () => {
+		const state = initialRunnerState();
+		expect(runnerSpeed(state, '1')).toBe(13);
+		expect(runnerRow(42, 0, '1').distance).toBe(65);
+		expect(runnerRow(42, 10, '1').distance).toBe(325);
+		expect(simulateRunner(state, 42, 30, [], '1').score).toBe(6);
+		expect(simulateRunner(state, 42, 30, [], '2').score).toBe(9);
+	});
+
+	it('replays a long safe route across levels identically after checkpoint recovery', () => {
+		const state = initialRunnerState();
+		const inputs: RunnerInput[] = [];
+		const seed = 42;
+		for (let tick = 1; tick <= 3600; tick++) {
+			const lane = runnerRow(seed, state.nextRow).coinLane;
+			const action =
+				state.lane === lane || tick - state.lastInputTick < 4
+					? undefined
+					: state.lane < lane
+						? 'right'
+						: 'left';
+			if (action) {
+				inputs.push({ tick, action });
+			}
+			stepRunner(state, seed, action);
+			expect(state.dead).toBe(false);
+		}
+		let recovered = initialRunnerState();
+		for (let tick = 300; tick <= 3600; tick += 300) {
+			recovered = simulateRunner(
+				recovered,
+				seed,
+				tick,
+				inputs.filter((input) => input.tick > tick - 300 && input.tick <= tick),
+			);
+		}
+		expect(recovered).toEqual(state);
+		expect(runnerLevel(recovered)).toBeGreaterThan(6);
+		expect(recovered.coins).toBeGreaterThan(100);
 	});
 });

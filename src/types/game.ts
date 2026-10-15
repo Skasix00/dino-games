@@ -10,9 +10,10 @@ export interface Question {
 	options: Option[];
 	correctOptionId: string | null;
 	approved: boolean;
+	enabled?: boolean;
 }
 
-export type Snapshot = Omit<Question, 'approved'> & { correctOptionId: string };
+export type Snapshot = Omit<Question, 'approved' | 'enabled'> & { correctOptionId: string };
 
 export interface Answer {
 	questionId: string;

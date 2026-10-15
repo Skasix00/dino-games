@@ -6,7 +6,8 @@ RUN npm ci
 FROM dependencies AS build
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# Git does not preserve an empty public directory in clean CI checkouts.
+RUN mkdir -p public && npm run build
 RUN mkdir -p /seed && ./node_modules/.bin/esbuild scripts/seed-questions.ts --bundle --platform=node --format=esm --external:mongodb --outfile=/seed/seed.mjs
 
 FROM node:24-alpine AS production

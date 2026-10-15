@@ -9,6 +9,7 @@ import type {
 
 import { api, ApiError, errorMessage } from '@/utils/api';
 import { runnerBatchId } from '@/utils/runner/batch-id';
+import { CURRENT_RUNNER_RULES } from '@/utils/runner/difficulty';
 import { initialRunnerState, RUNNER_FPS, stepRunner } from '@/utils/runner/engine';
 import { drawRunner } from '@/utils/runner/renderer';
 
@@ -56,6 +57,7 @@ export class RunnerController {
 		if (!this.destroyed) {
 			this.onChange({
 				mode: this.mode,
+				rulesVersion: this.session?.rulesVersion ?? CURRENT_RUNNER_RULES,
 				state: { ...this.state },
 				error: this.error,
 				rank: this.session?.rank,
@@ -257,7 +259,7 @@ export class RunnerController {
 						this.action = undefined;
 					}
 
-					stepRunner(this.state, this.session.seed, action);
+					stepRunner(this.state, this.session.seed, action, this.session.rulesVersion);
 					this.accumulated -= STEP_MS;
 
 					if (this.state.dead) {
@@ -282,7 +284,13 @@ export class RunnerController {
 			this.paintedWidth !== this.canvas.clientWidth ||
 			this.paintedHeight !== this.canvas.clientHeight
 		) {
-			drawRunner(this.canvas, this.state, this.session?.seed ?? 12345, this.visualLane);
+			drawRunner(
+				this.canvas,
+				this.state,
+				this.session?.seed ?? 12345,
+				this.visualLane,
+				this.session?.rulesVersion ?? CURRENT_RUNNER_RULES,
+			);
 			this.paintedTick = this.state.tick;
 			this.paintedMode = this.mode;
 			this.paintedWidth = this.canvas.clientWidth;

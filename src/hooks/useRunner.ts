@@ -5,6 +5,7 @@ import type { RunnerDisplay } from '@/types/runner';
 import { useEffect, useRef, useState } from 'react';
 
 import { RunnerController } from '@/utils/runner/controller';
+import { CURRENT_RUNNER_RULES } from '@/utils/runner/difficulty';
 import { initialRunnerState } from '@/utils/runner/engine';
 
 export function useRunner() {
@@ -12,6 +13,7 @@ export function useRunner() {
 	const controllerRef = useRef<RunnerController | null>(null);
 	const [display, setDisplay] = useState<RunnerDisplay>({
 		mode: 'loading',
+		rulesVersion: CURRENT_RUNNER_RULES,
 		state: initialRunnerState(),
 		error: '',
 		busy: false,

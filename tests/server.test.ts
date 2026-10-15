@@ -1,4 +1,5 @@
 import type { Identity } from '../src/server/auth';
+import type { RunnerSession } from '../src/types/runner';
 
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { randomUUID } from 'node:crypto';
@@ -69,7 +70,12 @@ beforeEach(async () => {
 		(await database()).collection('rateLimits').deleteMany({}),
 	]);
 	await questions.insertMany(
-		fixtureQuestions.map((q) => ({ ...q, _id: randomUUID(), gameSlug: slug, contentVersion: '1' })),
+		fixtureQuestions.slice(0, games[0].questionCount).map((q) => ({
+			...q,
+			_id: randomUUID(),
+			gameSlug: slug,
+			contentVersion: games[0].contentVersion,
+		})),
 	);
 });
 
@@ -346,5 +352,49 @@ describe('runner checkpoints and shared rankings', () => {
 		);
 		jar.clear();
 		expect((await request('games/bennyrex-rush/checkpoint', batch)).status).toBe(401);
+	});
+});
+
+describe('released quiz and versioned runner difficulty', () => {
+	it('starts the real 16-question bank while retaining the unanswered question in storage', async () => {
+		const { default: content } = await import('../src/content/bernardo.json');
+		const { questions } = await collections();
+		await questions.deleteMany({});
+		await questions.insertMany(
+			content.questions.map((question) => ({
+				...question,
+				_id: randomUUID(),
+				gameSlug: slug,
+				contentVersion: content.contentVersion,
+			})),
+		);
+		const run = await startGame(await playerIdentity(), slug);
+		expect(run.quiz.questions).toHaveLength(16);
+		expect(run.quiz.questions.some((question) => question.id === 'q04')).toBe(false);
+		expect(run.quiz.questions.every((question) => question.correctOptionId)).toBe(true);
+		expect(await questions.countDocuments({})).toBe(17);
+		expect((await questions.findOne({ id: 'q04' }))?.correctOptionId).toBeNull();
+	});
+
+	it('finishes old runs using old physics and separates them from the new ranking', async () => {
+		const { startRunner, checkpointRunner, runnerResponse } = await import('../src/server/runner');
+		const auth = await playerIdentity();
+		const run = await startRunner(auth, 'bennyrex-rush');
+		const collection = (await database()).collection<RunnerSession>('gameSessions');
+		await collection.updateOne({ _id: run._id }, { $set: { rulesVersion: '1' } });
+		const legacy = await startRunner(auth, 'bennyrex-rush');
+		expect((await runnerResponse(legacy)).rulesVersion).toBe('1');
+		const completed = await checkpointRunner(auth, 'bennyrex-rush', {
+			sessionId: legacy._id,
+			batchId: randomUUID(),
+			revision: 0,
+			toTick: 30,
+			inputs: [],
+			finish: true,
+		});
+		expect(completed.score).toBe(6);
+		expect(await leaderboard('bennyrex-rush')).toHaveLength(0);
+		expect(await leaderboard('bennyrex-rush', completed)).toHaveLength(1);
+		expect((await startRunner(auth, 'bennyrex-rush')).rulesVersion).toBe('2');
 	});
 });

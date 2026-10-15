@@ -4,7 +4,12 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { fixtureQuestions } from '../tests/fixtures';
+import content from '../src/content/bernardo.json';
+
+const enabledQuestions = content.questions.filter((question) => question.enabled);
+const answers = Object.fromEntries(
+	enabledQuestions.map((question) => [question.id, question.correctOptionId]),
+);
 
 const project = `dino-verify-${randomBytes(5).toString('hex')}`;
 const directory = await mkdtemp(join(tmpdir(), 'dino-containers-'));
@@ -84,29 +89,11 @@ try {
 		`${client}
     const registered = await api('auth/register', { displayName: 'Container Tester', password: 'container-test-password' });
     assert.equal(registered.status, 201);
-    assert.equal((await api('games/bernardo-quiz/start', {})).status, 423);
-    console.info('Production image: registration works and unapproved quiz stays locked.');
+    assert.equal((await api('games/bernardo-quiz/availability')).data.ready, true);
+    console.info('Production image: registration works and the 16-question quiz is available.');
   `,
 	]);
 
-	// This project has its own randomly named volume. Production/local data is never selected.
-	await docker([
-		...compose,
-		'exec',
-		'-T',
-		'app',
-		'node',
-		'--input-type=module',
-		'-e',
-		`
-    import { MongoClient } from 'mongodb';
-    const client = await new MongoClient(process.env.MONGODB_URI).connect();
-    const questions = client.db(process.env.MONGODB_DB).collection('questions');
-    await questions.deleteMany({});
-    await questions.insertMany(${JSON.stringify(fixtureQuestions)}.map(q => ({ ...q, gameSlug: 'bernardo-quiz', contentVersion: '1' })));
-    await client.close();
-  `,
-	]);
 	await docker([
 		...compose,
 		'exec',
@@ -118,12 +105,15 @@ try {
 		`${client}
     assert.equal((await api('auth/login', { displayName: 'Container Tester', password: 'container-test-password' })).status, 200);
     let current = (await api('games/bernardo-quiz/start', {})).data.session;
-    for (let index = 0; index < 17; index++) {
+    assert.equal(current.totalQuestions, ${enabledQuestions.length});
+    const answers = ${JSON.stringify(answers)};
+    for (let index = 0; index < ${enabledQuestions.length}; index++) {
       const questionId = current.question.id;
-      current = (await api('games/bernardo-quiz/answer', { sessionId: current.id, questionId, optionId: 'a' })).data.session;
-      if (index < 16) current = (await api('games/bernardo-quiz/next', { sessionId: current.id, questionId })).data.session;
+      assert.notEqual(questionId, 'q04');
+      current = (await api('games/bernardo-quiz/answer', { sessionId: current.id, questionId, optionId: answers[questionId] })).data.session;
+      if (index < ${enabledQuestions.length - 1}) current = (await api('games/bernardo-quiz/next', { sessionId: current.id, questionId })).data.session;
     }
-    assert.equal(current.score, 1700);
+    assert.equal(current.score, ${enabledQuestions.length * 100});
     assert.equal(current.status, 'completed');
     const runner = (await api('games/bennyrex-rush/start', {})).data.session;
     const checkpoint = await api('games/bennyrex-rush/checkpoint', {
@@ -131,7 +121,7 @@ try {
       toTick: 30, inputs: [], finish: true,
     });
     assert.equal(checkpoint.status, 200);
-    assert.equal(checkpoint.data.session.state.score, 6);
+    assert.equal(checkpoint.data.session.state.score, 9);
     console.info('Production image: quiz and dinosaur runner results saved separately.');
   `,
 	]);
@@ -148,10 +138,10 @@ try {
     assert.equal((await api('auth/login', { displayName: 'Container Tester', password: 'container-test-password' })).status, 200);
     const ranking = (await api('games/bernardo-quiz/leaderboard')).data.rows;
     assert.equal(ranking[0].displayName, 'Container Tester');
-    assert.equal(ranking[0].score, 1700);
+    assert.equal(ranking[0].score, ${enabledQuestions.length * 100});
     const runnerRanking = (await api('games/bennyrex-rush/leaderboard')).data.rows;
-    assert.equal(runnerRanking[0].score, 6);
-    assert.equal(runnerRanking[0].distance, 6);
+    assert.equal(runnerRanking[0].score, 9);
+    assert.equal(runnerRanking[0].distance, 9);
     console.info('Persistence verified: account, quiz and runner results survived container recreation.');
   `,
 	]);
