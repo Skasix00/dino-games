@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 
-import {
-	checkOrigin,
-	clearIdentity,
-	requireIdentity,
-	saveIdentity,
-	throttle,
-} from '@/server/auth';
+import { checkOrigin, clearIdentity, requireIdentity, saveIdentity, throttle } from '@/server/auth';
 import { collections, database } from '@/server/database';
 import {
 	availability,
@@ -20,8 +14,8 @@ import {
 	sessionResponse,
 	startGame,
 } from '@/server/games';
-import { GameError, normalizeName } from '@/server/quiz';
 import { hashPassword, verifyPassword } from '@/server/passwords';
+import { GameError, normalizeName } from '@/server/quiz';
 const uuid = z.string().uuid();
 const answerSchema = z
 	.object({
@@ -63,30 +57,37 @@ export async function handleApi(request: Request, path: string[]) {
 			return json({ ok: true });
 		}
 		if (post && (route === 'auth/register' || route === 'auth/login')) {
-      await throttle(request, 'accounts', 60);
-      const { displayName, password } = z.object({
-        displayName: z.string().min(2).max(32),
-        password: z.string().min(8).max(128),
-      }).strict().parse(await body(request));
+			await throttle(request, 'accounts', 60);
+			const { displayName, password } = z
+				.object({
+					displayName: z.string().min(2).max(32),
+					password: z.string().min(8).max(128),
+				})
+				.strict()
+				.parse(await body(request));
 
-      await throttle(request, 'username', 15, normalizeName(displayName));
-      const { players } = await collections();
-      let player;
+			await throttle(request, 'username', 15, normalizeName(displayName));
+			const { players } = await collections();
+			let player;
 
-      if (route === 'auth/register') {
-        player = await createPlayer(displayName, await hashPassword(password));
-      } else {
-        player = await players.findOne({ normalizedName: normalizeName(displayName) });
-        const valid = await verifyPassword(password, player?.passwordHash);
+			if (route === 'auth/register') {
+				player = await createPlayer(displayName, await hashPassword(password));
+			} else {
+				player = await players.findOne({ normalizedName: normalizeName(displayName) });
+				const valid = await verifyPassword(password, player?.passwordHash);
 
-        if (!player || !valid) {
-          throw new GameError('Nome de utilizador ou palavra-passe incorretos.', 401);
-        }
-      }
+				if (!player || !valid) {
+					throw new GameError('Nome de utilizador ou palavra-passe incorretos.', 401);
+				}
+			}
 
-      await saveIdentity(player._id);
-      return json({ player: { _id: player._id, displayName: player.displayName } }, route === 'auth/register' ? 201 : 200);
-    }
+			await saveIdentity(player._id);
+
+			return json(
+				{ player: { _id: player._id, displayName: player.displayName } },
+				route === 'auth/register' ? 201 : 200,
+			);
+		}
 		const auth = await requireIdentity();
 		await throttle(request, post ? 'write' : 'read', post ? 120 : 240, auth.ownerId);
 		const { players } = await collections();

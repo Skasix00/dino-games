@@ -45,13 +45,22 @@ export async function createPlayer(name: string, passwordHash: string) {
 		throw new GameError('Usa um nome entre 2 e 32 caracteres.');
 	}
 	try {
-		const player = { _id: randomUUID(), displayName, normalizedName, passwordHash, createdAt: new Date() };
+		const player = {
+			_id: randomUUID(),
+			displayName,
+			normalizedName,
+			passwordHash,
+			createdAt: new Date(),
+		};
 		await players.insertOne(player);
 
 		return player;
 	} catch (error) {
 		if (error instanceof MongoServerError && error.code === 11000) {
-			throw new GameError('Esse nome já existe. Entra com a tua palavra-passe ou escolhe outro nome.', 409);
+			throw new GameError(
+				'Esse nome já existe. Entra com a tua palavra-passe ou escolhe outro nome.',
+				409,
+			);
 		}
 		throw error;
 	}

@@ -19,6 +19,7 @@ function secret() {
 	if (!value || value.length < 32) {
 		throw new Error('SESSION_SECRET must contain at least 32 characters');
 	}
+
 	return value;
 }
 
@@ -70,7 +71,11 @@ export async function requireIdentity() {
 }
 
 export async function saveIdentity(playerId: string) {
-	const current: Identity = { ownerId: randomUUID(), playerId, expires: Date.now() + MAX_AGE * 1000 };
+	const current: Identity = {
+		ownerId: randomUUID(),
+		playerId,
+		expires: Date.now() + MAX_AGE * 1000,
+	};
 	(await cookies()).set(COOKIE, encodeIdentity(current), {
 		httpOnly: true,
 		sameSite: 'lax',

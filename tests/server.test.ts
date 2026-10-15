@@ -1,0 +1,251 @@
+import type { Identity } from '../src/server/auth';
+
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import { randomUUID } from 'node:crypto';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { decodeIdentity, encodeIdentity } from '../src/server/auth';
+import { closeDatabase, collections, database, ensureIndexes } from '../src/server/database';
+import {
+	changeSession,
+	createPlayer,
+	currentGame,
+	leaderboard,
+	ownedSession,
+	startGame,
+} from '../src/server/games';
+import { handleApi } from '../src/server/http';
+import { hashPassword, verifyPassword } from '../src/server/passwords';
+import { publicSession } from '../src/server/quiz';
+import { games } from '../src/settings/games';
+import { fixtureQuestions } from './fixtures';
+
+const jar = vi.hoisted(() => new Map<string, string>());
+
+vi.mock('next/headers', () => ({
+	cookies: async () => ({
+		get: (name: string) => (jar.has(name) ? { value: jar.get(name) } : undefined),
+		set: (name: string, value: string) => jar.set(name, value),
+		delete: (name: string) => jar.delete(name),
+	}),
+}));
+
+let mongo: MongoMemoryServer;
+const slug = 'bernardo-quiz';
+
+async function request(path: string, data?: unknown, origin = 'http://localhost:3000') {
+	return handleApi(
+		new Request(`http://localhost:3000/api/${path}`, {
+			method: data === undefined ? 'GET' : 'POST',
+			headers: { origin, 'content-type': 'application/json' },
+			body: data === undefined ? undefined : JSON.stringify(data),
+		}),
+		path.split('/'),
+	);
+}
+
+async function playerIdentity(name = 'Ana'): Promise<Identity> {
+	const player = await createPlayer(name, await hashPassword('uma-palavra-passe'));
+
+	return { ownerId: randomUUID(), playerId: player._id, expires: Date.now() + 60_000 };
+}
+
+beforeAll(async () => {
+	mongo = await MongoMemoryServer.create({ binary: { version: '7.0.14' } });
+	process.env.MONGODB_URI = mongo.getUri();
+	process.env.MONGODB_DB = 'dino_tests';
+	process.env.APP_ORIGIN = 'http://localhost:3000';
+	process.env.SESSION_SECRET = 'test-secret-that-is-longer-than-thirty-two-characters';
+	await ensureIndexes();
+});
+
+beforeEach(async () => {
+	jar.clear();
+	const { sessions, players, questions } = await collections();
+	await Promise.all([
+		sessions.deleteMany({}),
+		players.deleteMany({}),
+		questions.deleteMany({}),
+		(await database()).collection('rateLimits').deleteMany({}),
+	]);
+	await questions.insertMany(
+		fixtureQuestions.map((q) => ({ ...q, _id: randomUUID(), gameSlug: slug, contentVersion: '1' })),
+	);
+});
+
+afterAll(async () => {
+	await closeDatabase();
+	await mongo?.stop();
+});
+
+describe('personal accounts and API boundaries', () => {
+	it('registers without an event code, signs in, and never returns password hashes', async () => {
+		const registration = await request('auth/register', {
+			displayName: 'Ana',
+			password: 'minha-palavra-passe',
+		});
+		expect(registration.status).toBe(201);
+		expect(JSON.stringify(await registration.json())).not.toContain('password');
+		expect(jar.get('dino-session')).toBeTruthy();
+		expect((await request('me')).status).toBe(200);
+		await request('logout', {});
+		expect((await request('me')).status).toBe(401);
+		expect(
+			(await request('auth/login', { displayName: 'ANA', password: 'errada-123' })).status,
+		).toBe(401);
+		expect(
+			(await request('auth/login', { displayName: 'ana', password: 'minha-palavra-passe' })).status,
+		).toBe(200);
+		expect((await request('players/select', { playerId: randomUUID() })).status).toBe(404);
+	});
+
+	it('stores salted hashes and rejects tampered or expired cookies', async () => {
+		const first = await hashPassword('a-long-password');
+		const second = await hashPassword('a-long-password');
+		expect(first).not.toBe(second);
+		expect(await verifyPassword('a-long-password', first)).toBe(true);
+		expect(await verifyPassword('wrong-password', first)).toBe(false);
+		const auth = await playerIdentity();
+		const token = encodeIdentity(auth);
+		expect(decodeIdentity(token)?.playerId).toBe(auth.playerId);
+		expect(decodeIdentity(`${token}changed`)).toBeNull();
+		expect(decodeIdentity(encodeIdentity({ ...auth, expires: 0 }))).toBeNull();
+	});
+
+	it('rejects duplicate normalized names, foreign origins and unauthenticated access', async () => {
+		await playerIdentity('  Ana  Silva ');
+		await expect(createPlayer('ANA SILVA', 'hash')).rejects.toMatchObject({ status: 409 });
+		expect(
+			(
+				await request(
+					'auth/register',
+					{ displayName: 'Bruno', password: 'long-password' },
+					'https://elsewhere.test',
+				)
+			).status,
+		).toBe(403);
+		for (const action of ['current', 'leaderboard', 'result', 'availability']) {
+			expect((await request(`games/${slug}/${action}`)).status).toBe(401);
+		}
+	});
+
+	it('throttles repeated sign-in attempts', async () => {
+		for (let attempt = 0; attempt < 15; attempt++) {
+			expect(
+				(await request('auth/login', { displayName: 'Unknown', password: 'bad-password' })).status,
+			).toBe(401);
+		}
+		const blocked = await request('auth/login', {
+			displayName: 'Unknown',
+			password: 'bad-password',
+		});
+		expect(blocked.status).toBe(429);
+		expect(blocked.headers.get('retry-after')).toBe('60');
+	});
+});
+
+describe('MongoDB sessions', () => {
+	it('blocks launch if any question is pending', async () => {
+		const auth = await playerIdentity();
+		await (
+			await collections()
+		).questions.updateOne({ order: 4 }, { $set: { approved: false, correctOptionId: null } });
+		await expect(startGame(auth, slug)).rejects.toMatchObject({ status: 423 });
+	});
+
+	it('returns one active run under concurrent starts and scores concurrent answers once', async () => {
+		const auth = await playerIdentity();
+		const runs = await Promise.all(Array.from({ length: 8 }, () => startGame(auth, slug)));
+		expect(new Set(runs.map((run) => run._id)).size).toBe(1);
+		const run = runs[0];
+		const question = run.quiz.questions[0];
+		await Promise.all(
+			Array.from({ length: 8 }, () =>
+				changeSession(auth, slug, run._id, 'answer', question.id, 'a'),
+			),
+		);
+		const saved = await ownedSession(auth, slug, run._id);
+		expect(saved.score).toBe(100);
+		expect(saved.quiz.answers).toHaveLength(1);
+		await expect(
+			changeSession(auth, slug, run._id, 'answer', question.id, 'b'),
+		).rejects.toMatchObject({ status: 409 });
+		await Promise.all(
+			Array.from({ length: 4 }, () => changeSession(auth, slug, run._id, 'next', question.id)),
+		);
+		expect((await ownedSession(auth, slug, run._id)).quiz.index).toBe(1);
+	});
+
+	it('restores exact snapshots after reconnect, content edits and refreshes', async () => {
+		const auth = await playerIdentity();
+		const run = await startGame(auth, slug);
+		await (await collections()).questions.updateMany({}, { $set: { text: 'Changed bank' } });
+		await closeDatabase();
+		const recovered = await currentGame(auth, slug);
+		expect(recovered?.quiz).toEqual(run.quiz);
+		expect(publicSession(recovered!).question).toEqual(publicSession(run).question);
+		expect(JSON.stringify(publicSession(run))).not.toContain('correctOptionId');
+		await expect(
+			ownedSession({ ...auth, ownerId: randomUUID() }, slug, run._id),
+		).rejects.toMatchObject({ status: 404 });
+	});
+
+	it('ranks best attempts by accuracy, milliseconds, completion, and isolates games', async () => {
+		const { sessions } = await collections();
+		const names = ['Ana', 'Bruno', 'Carla', 'Diogo'];
+		const accounts = await Promise.all(names.map((name) => playerIdentity(name)));
+		const base = await startGame(accounts[0], slug);
+		const results = [
+			{
+				playerId: accounts[0].playerId,
+				score: 1600,
+				totalTimeMs: 1000,
+				completedAt: new Date(1000),
+			},
+			{
+				playerId: accounts[0].playerId,
+				score: 1700,
+				totalTimeMs: 5000,
+				completedAt: new Date(2000),
+			},
+			{
+				playerId: accounts[1].playerId,
+				score: 1700,
+				totalTimeMs: 4999,
+				completedAt: new Date(4000),
+			},
+			{
+				playerId: accounts[2].playerId,
+				score: 1700,
+				totalTimeMs: 5000,
+				completedAt: new Date(3000),
+			},
+			{ playerId: accounts[3].playerId, score: 1600, totalTimeMs: 1, completedAt: new Date(1000) },
+		];
+		await sessions.insertMany(
+			results.map((result) => ({
+				...base,
+				...result,
+				_id: randomUUID(),
+				status: 'completed' as const,
+				correctAnswers: result.score / 100,
+			})),
+		);
+		await sessions.insertOne({
+			...base,
+			_id: randomUUID(),
+			gameSlug: 'other-game',
+			status: 'completed',
+			score: 9999,
+		});
+		const ranking = await leaderboard(slug);
+		expect(ranking.map((row) => row.displayName)).toEqual(['Bruno', 'Ana', 'Carla', 'Diogo']);
+		expect(ranking).toHaveLength(4);
+		games.push({ ...games[0], slug: 'other-game' });
+		try {
+			expect(await leaderboard('other-game')).toHaveLength(1);
+		} finally {
+			games.pop();
+		}
+	});
+});
