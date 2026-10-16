@@ -43,7 +43,13 @@ test('mobile dinosaur runner: swipes, jump, slide, pause, lost response retry, r
 	page,
 }) => {
 	await account(page, 'Dino Mobile');
+	// Keep browser/CI latency from carrying this controls test into a random obstacle.
+	// Advance animation frames explicitly; collision behavior has its own test below.
+	const now = new Date();
+	await page.clock.install({ time: now });
+	await page.clock.pauseAt(new Date(now.getTime() + 1000));
 	await start(page);
+	await page.clock.runFor(150);
 	const canvas = page.locator('canvas');
 	await expect(canvas).toHaveAttribute('aria-label', /dinossauro BennyRex/);
 	await expect(page.getByLabel('Nível atual')).toHaveText('NÍVEL1');
@@ -52,14 +58,20 @@ test('mobile dinosaur runner: swipes, jump, slide, pause, lost response retry, r
 		'Progresso para o nível 2',
 	);
 	await swipe(page, -90, 0);
+	await page.clock.runFor(150);
 	await expect(canvas).toHaveAttribute('data-lane', '0');
 	await page.getByRole('button', { name: 'Direita', exact: true }).click();
+	await page.clock.runFor(150);
 	await expect(canvas).toHaveAttribute('data-lane', '1');
 	await swipe(page, 0, -90);
+	await page.clock.runFor(150);
 	await expect(canvas).toHaveAttribute('data-motion', 'jump');
+	await page.clock.runFor(1000);
 	await expect(canvas).toHaveAttribute('data-motion', 'run');
 	await page.getByRole('button', { name: 'Deslizar', exact: true }).click();
+	await page.clock.runFor(150);
 	await expect(canvas).toHaveAttribute('data-motion', 'slide');
+	await page.clock.runFor(900);
 	await expect(canvas).toHaveAttribute('data-motion', 'run');
 	await page.screenshot({ path: 'test-results/mobile-runner-playing.png' });
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
