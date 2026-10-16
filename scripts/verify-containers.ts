@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import content from '../src/content/bernardo.json';
+import { hashPassword } from '../src/server/passwords';
 
 const enabledQuestions = content.questions.filter((question) => question.enabled);
 const answers = Object.fromEntries(
@@ -89,6 +90,8 @@ try {
 			`MONGO_INITDB_ROOT_PASSWORD=${randomBytes(24).toString('hex')}`,
 			'MONGODB_DB=dino_container_tests',
 			`SESSION_SECRET=${randomBytes(32).toString('hex')}`,
+			'ADMIN_USERNAME=container_admin',
+			`ADMIN_PASSWORD_HASH=${await hashPassword(randomBytes(24).toString('hex'))}`,
 		].join('\n'),
 		{ mode: 0o600 },
 	);
