@@ -14,6 +14,13 @@ import {
 	sessionResponse,
 	startGame,
 } from '@/server/games';
+import {
+	adminUsername,
+	clearAdminIdentity,
+	requireAdmin,
+	saveAdminIdentity,
+	verifyAdminPassword,
+} from '@/server/moderation';
 import { hashPassword, verifyPassword } from '@/server/passwords';
 import { GameError, normalizeName } from '@/server/quiz';
 import {
@@ -74,8 +81,9 @@ async function body(request: Request) {
 export async function handleApi(request: Request, path: string[]) {
 	try {
 		const route = path.join('/');
+		const mutation = request.method === 'POST' || request.method === 'DELETE';
 		const post = request.method === 'POST';
-		if (post) {
+		if (mutation) {
 			checkOrigin(request);
 		}
 		if (!post && route === 'health') {
@@ -114,6 +122,67 @@ export async function handleApi(request: Request, path: string[]) {
 				{ player: { _id: player._id, displayName: player.displayName } },
 				route === 'auth/register' ? 201 : 200,
 			);
+		}
+		if (route === 'admin/login' && post) {
+			await throttle(request, 'admin-login', 10);
+			const data = z
+				.object({ username: z.string().min(1).max(64), password: z.string().min(8).max(128) })
+				.strict()
+				.parse(await body(request));
+			if (data.username !== adminUsername() || !(await verifyAdminPassword(data.password))) {
+				throw new GameError('Credenciais de administrador incorretas.', 401);
+			}
+			await saveAdminIdentity();
+
+			return json({ ok: true });
+		}
+		if (route === 'admin/logout' && post) {
+			await requireAdmin();
+			await clearAdminIdentity();
+
+			return json({ ok: true });
+		}
+		if (path[0] === 'admin' && path[1] === 'users') {
+			await requireAdmin();
+			const { players, sessions } = await collections();
+			if (request.method === 'GET') {
+				const users = await players
+					.find({}, { projection: { passwordHash: 0 } })
+					.sort({ createdAt: -1 })
+					.toArray();
+				const counts = await sessions
+					.aggregate<{ _id: string; count: number }>([
+						{ $group: { _id: '$playerId', count: { $sum: 1 } } },
+					])
+					.toArray();
+				const byPlayer = new Map(counts.map((item) => [item._id, item.count]));
+
+				return json({
+					users: users.map(({ _id, displayName, createdAt }) => ({
+						_id,
+						displayName,
+						createdAt,
+						sessionCount: byPlayer.get(_id) ?? 0,
+					})),
+				});
+			}
+			if (request.method !== 'DELETE') {
+				throw new GameError('Pedido não disponível.', 405);
+			}
+			const data = z
+				.object({ playerId: uuid, displayName: z.string().min(2).max(32) })
+				.strict()
+				.parse(await body(request));
+			const player = await players.findOne({ _id: data.playerId });
+			if (!player || player.displayName !== data.displayName) {
+				throw new GameError('Confirma o nome exato do utilizador.', 409);
+			}
+			await Promise.all([
+				players.deleteOne({ _id: player._id }),
+				sessions.deleteMany({ playerId: player._id }),
+			]);
+
+			return json({ ok: true });
 		}
 		const auth = await requireIdentity();
 		await throttle(request, post ? 'write' : 'read', post ? 120 : 240, auth.ownerId);

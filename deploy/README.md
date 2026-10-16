@@ -8,6 +8,32 @@ The root `compose.yml` runs the whole site on its own server:
 
 The proxy configuration is embedded in Compose. No external database, proxy files, shared network, override file, or manual seed command is required. NiceNails is on a separate server and is not involved.
 
+## Administrator and name moderation
+
+The administrator is separate from MongoDB players. It is configured with `ADMIN_USERNAME` and a scrypt `ADMIN_PASSWORD_HASH`; it never appears in the public player list or rankings. Generate a hash on a trusted machine or on the server:
+
+```sh
+npm ci
+npm run admin:hash -- --password 'choose-a-long-password'
+```
+
+Copy the printed hash into `/opt/dino-games/.env`:
+
+```dotenv
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH=the-printed-scrypt-hash
+```
+
+The command prints only the hash. It does not create a MongoDB user. Normal players continue to register at the website; MongoDB stores those players, game sessions, and scores. Apply the configuration with:
+
+```sh
+cd /opt/dino-games
+chmod 600 .env
+docker compose up -d --force-recreate app
+```
+
+Open `https://brunocastelo.me/admin/login` to moderate users. Deleting a user permanently removes that player, their sessions, and their leaderboard results. Registration rejects common offensive names after case, accent, punctuation, and spacing normalization; the administrator can remove names that pass the filter.
+
 ## Automatic setup (Ubuntu ARM64 / Hetzner CAX11)
 
 First push the changes and wait for GitHub Actions to publish the new multi-platform image. It includes both `linux/arm64` for this CAX11 and `linux/amd64`. The server pulls the compiled image; it does not build Next.js on its 4 GB of RAM.
@@ -20,7 +46,7 @@ From this repository on the new server, run:
 sudo bash deploy/setup.sh --email YOUR_REAL_EMAIL --install-docker
 ```
 
-The script installs missing Docker Engine/Compose on Ubuntu or Debian via Docker's official APT repository, detecting the host architecture with `dpkg`. It generates two independent random secrets, creates `/opt/dino-games/.env` with permissions 0600, copies the single Compose file there, pulls the images, starts the whole stack, and checks public HTTPS. It never prints the generated secrets. Docker installation requires root; on a server where Docker is already installed, `--install-docker` is optional.
+The script installs missing Docker Engine/Compose on Ubuntu or Debian via Docker's official APT repository, detecting the host architecture with `dpkg`. Before its first `docker compose` step, add `ADMIN_USERNAME` and the generated `ADMIN_PASSWORD_HASH` to `/opt/dino-games/.env` as described above. It generates the remaining two independent secrets, creates `/opt/dino-games/.env` with permissions 0600, copies the single Compose file there, pulls the images, starts the whole stack, and checks public HTTPS. It never prints generated secrets. Docker installation requires root; on a server where Docker is already installed, `--install-docker` is optional.
 
 Rerun the same script for updates. Existing credentials and `.env` settings are preserved exactly; supplied `--email` is used only when creating a new configuration. For a different destination, add `--dir /your/path`. It refuses to generate replacement credentials if the MongoDB volume exists but `.env` is missing. It never deletes containers or volumes. An existing `.env` containing template placeholders must be completed manually rather than silently replaced.
 

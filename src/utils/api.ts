@@ -7,12 +7,12 @@ export class ApiError extends Error {
 	}
 }
 
-export async function api<T>(path: string, data?: unknown): Promise<T> {
+export async function api<T>(path: string, data?: unknown, method?: 'POST' | 'DELETE'): Promise<T> {
 	let response: Response;
 
 	try {
 		response = await fetch(`/api/${path}`, {
-			method: data === undefined ? 'GET' : 'POST',
+			method: method || (data === undefined ? 'GET' : 'POST'),
 			headers: data === undefined ? undefined : { 'Content-Type': 'application/json' },
 			body: data === undefined ? undefined : JSON.stringify(data),
 			cache: 'no-store',

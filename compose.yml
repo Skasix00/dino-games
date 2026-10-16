@@ -19,6 +19,8 @@ services:
       MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:?Set Mongo username}:${MONGO_INITDB_ROOT_PASSWORD:?Set Mongo password}@mongo:27017/${MONGODB_DB:-dino_games}?authSource=admin
       MONGODB_DB: ${MONGODB_DB:-dino_games}
       SESSION_SECRET: ${SESSION_SECRET:?Set session secret}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set admin username}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set admin password hash}
       TRUST_PROXY: 'true'
     depends_on:
       mongo:

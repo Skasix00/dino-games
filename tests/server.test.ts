@@ -16,6 +16,7 @@ import {
 	startGame,
 } from '../src/server/games';
 import { handleApi } from '../src/server/http';
+import { validateDisplayName } from '../src/server/moderation';
 import { hashPassword, verifyPassword } from '../src/server/passwords';
 import { publicSession } from '../src/server/quiz';
 import { games } from '../src/settings/games';
@@ -33,6 +34,14 @@ vi.mock('next/headers', () => ({
 
 let mongo: MongoMemoryServer;
 const slug = 'bernardo-quiz';
+
+describe('name moderation', () => {
+	it('rejects normalized offensive names and accepts ordinary names', () => {
+		expect(() => validateDisplayName('c.o.n.a')).toThrow('respeitosa');
+		expect(() => validateDisplayName('PÍLA')).toThrow('respeitosa');
+		expect(() => validateDisplayName('Benny Rex')).not.toThrow();
+	});
+});
 
 async function request(path: string, data?: unknown, origin = 'http://localhost:3000') {
 	return handleApi(

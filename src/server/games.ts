@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { collections } from '@/server/database';
 import { type GameDefinition, getGame } from '@/settings/games';
 
+import { validateDisplayName } from './moderation';
 import {
 	answerQuestion,
 	GameError,
@@ -45,6 +46,7 @@ export async function createPlayer(name: string, passwordHash: string) {
 	const { players } = await collections();
 	const displayName = name.normalize('NFKC').trim().replace(/\s+/gu, ' ');
 	const normalizedName = normalizeName(name);
+	validateDisplayName(displayName);
 	if (displayName.length < 2 || displayName.length > 32 || /[\p{Cc}\p{Cf}]/u.test(displayName)) {
 		throw new GameError('Usa um nome entre 2 e 32 caracteres.');
 	}
