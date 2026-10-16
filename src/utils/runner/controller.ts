@@ -24,6 +24,7 @@ export class RunnerController {
 	private action?: RunnerAction;
 	private batch: RunnerBatch | null = null;
 	private sending = false;
+	private retryPending = false;
 	private starting = false;
 	private wantsFinish = false;
 	private error = '';
@@ -162,7 +163,13 @@ export class RunnerController {
 
 	retry() {
 		this.error = '';
+		this.mode = 'paused';
 		this.emit();
+
+		if (this.sending) {
+			this.retryPending = true;
+			return;
+		}
 
 		if (this.session) {
 			void this.flush();
@@ -224,6 +231,11 @@ export class RunnerController {
 		} finally {
 			this.sending = false;
 			this.emit();
+		}
+
+		if (this.retryPending && !this.destroyed) {
+			this.retryPending = false;
+			void this.flush();
 		}
 
 		if (
