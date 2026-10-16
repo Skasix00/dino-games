@@ -168,6 +168,7 @@ export class RunnerController {
 
 		if (this.sending) {
 			this.retryPending = true;
+
 			return;
 		}
 

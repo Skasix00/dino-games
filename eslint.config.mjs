@@ -1,7 +1,6 @@
 import stylistic from '@stylistic/eslint-plugin';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTypescript from 'eslint-config-next/typescript';
-import prettier from 'eslint-config-prettier/flat';
 import perfectionist from 'eslint-plugin-perfectionist';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
@@ -9,7 +8,6 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 export default defineConfig([
 	...nextVitals,
 	...nextTypescript,
-	prettier,
 	globalIgnores(['.next/**', 'playwright-report/**', 'test-results/**', 'next-env.d.ts']),
 	{
 		files: ['**/*.{js,mjs,ts,tsx}'],
