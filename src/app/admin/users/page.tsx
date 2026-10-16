@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react';
 
 import { api, errorMessage } from '@/utils/api';
 
-interface User { _id: string; displayName: string; createdAt: string; sessionCount: number }
+interface User {
+	_id: string;
+	displayName: string;
+	createdAt: string;
+	sessionCount: number;
+}
 
 export default function AdminUsers() {
 	const [users, setUsers] = useState<User[]>([]);
@@ -18,8 +23,9 @@ export default function AdminUsers() {
 		if (
 			window.prompt(`Escreve exatamente «${user.displayName}» para apagar este utilizador.`) !==
 			user.displayName
-		)
-			{return;}
+		) {
+			return;
+		}
 		try {
 			await api('admin/users', { playerId: user._id, displayName: user.displayName }, 'DELETE');
 			setUsers((current) => current.filter((item) => item._id !== user._id));
